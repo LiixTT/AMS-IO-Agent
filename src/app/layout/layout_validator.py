@@ -10,8 +10,13 @@ class LayoutValidator:
     """Layout Validator"""
     
     @staticmethod
-    def validate_layout_rules(layout_components: List[dict]) -> dict:
-        """Validate layout rules"""
+    def validate_layout_rules(layout_components: List[dict], process_node: str = "T28") -> dict:
+        """Validate layout rules
+        
+        Args:
+            layout_components: List of layout components to validate
+            process_node: Process node (e.g., "T28", "T180") - reserved for future use
+        """
         if not layout_components:
             return {"valid": False, "message": "Component list is empty"}
         

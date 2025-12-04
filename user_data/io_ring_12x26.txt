@@ -1,0 +1,49 @@
+IO_28nm_12x26: |
+Task: Generate IO ring schematic and layout design for Cadence Virtuoso.
+
+  Design requirements:
+  12 pads on left and right sides, 26 pads on top and bottom sides. Double ring layout. Order: counterclockwise through left side, bottom side, right side, top side.
+
+
+  ======================================================================
+  SIGNAL CONFIGURATION
+  ======================================================================
+  Signal names: CVSS AVSS2 AVSS2 AVDDH2 AVDDH2 FVDD FVDDH FVSS VREFP2 VREFN2 VREFPF2 VREFNF2 AVDDH1 AVDDH1 AVSS1 AVSS1 VREFP1 VREFN1 AVDDH0 AVDDH0 AVSS0 AVSS0 VREFP0 VREFN0 VINP VINN VREFN0 VREFP0 AVSS0 AVSS0 AVDDH0 AVDDH0 VREFN1 VREFP1 AVSS1 AVSS1 AVDDH1 AVDDH1 CVSS CLKN CLKP CVDD VREFNF3 VREFPF3 VREFN3 VREFP3 AVDDH3 AVDDH3 AVSS3 AVSS3 FVSS FVDDH FVDD VDDCAL VSSCAL VSSFIFO VDDFIFO DVDD DVSS SDO CLKO FLAG SCKI SEL<0> SEL<1> SEL<2> TRIG RST SDI DVSS DVDD VDDFIFO VSSFIFO VSSSPI VDDSPI CVDD
+
+  Additionally, please insert inner ring pads:
+  - insert an inner ring pad VREFPF4 between AVSS2 and AVSS2
+  - insert an inner ring pad VREFNF4 between AVSS2 and AVDDH2
+  - insert an inner ring pad IBOTA3 between FVSS and VREFP2
+  - insert an inner ring pad IBOTA2 between VREFP2 and VREFN2
+  - insert an inner ring pad IBOTA1 between VREFN2 and VREFPF2      
+  - insert an inner ring pad IBOTA0 between VREFPF2 and VREFNF2 
+  - insert an inner ring pad VREFPF1 between AVSS1 and VREFP1
+  - insert an inner ring pad VREFNF1 between VREFP1 and VREFN1
+  - insert an inner ring pad VCM between VREFN0 and VINP
+  - insert an inner ring pad VREFPF0 between VINN and VREFN0
+  - insert an inner ring pad VREFNF0 between VREFN0 and VREFP0 
+  - insert an inner ring pad IBF between VREFP3 and VREFN3
+  - insert an inner ring pad D<0> between SDO and CLKO
+  - insert an inner ring pad D<1> between CLKO and FLAG
+  - insert an inner ring pad D<2> between FLAG and SCKI
+  - insert an inner ring pad D<3> between SCKI and SEL<0>
+  - insert an inner ring pad D<4> between SEL<0> and SEL<1>
+  - insert an inner ring pad GIOL between SEL<1> and SEL<2>
+  - insert an inner ring pad VIOL between SEL<2> and TRIG
+  - insert an inner ring pad VIOH between TRIG and RST
+  - insert an inner ring pad GIOH between RST and SDI
+
+  ======================================================================
+  VOLTAGE DOMAIN CONFIGURATION
+  ======================================================================
+  Voltage domain requirements:
+  - digital signals use digital domain voltage domain (VIOL/GIOL/VIOH/GIOH)
+
+  ======================================================================
+  DESIGN CONFIGURATION
+  ======================================================================
+  Configuration:
+  - Technology: 28nm process node
+  - Library: LLM_Layout_Design
+  - Cell name: IO_RING_12x26
+  - View: schematic and layout

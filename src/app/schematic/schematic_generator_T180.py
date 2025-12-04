@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Schematic Generator - Specialized for generating SKILL code
+Schematic Generator for 180nm process node - Specialized for generating SKILL code
 """
 
 import math
@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Dict, Any
 
 
-# Import device template parser from the correct location
-from src.scripts.devices.IO_device_info_T28_parser import DeviceTemplate, DeviceTemplateManager
+# Import device template parser from the correct location (180nm)
+from src.scripts.devices.IO_decive_info_T180_parser import DeviceTemplate, DeviceTemplateManager
 from src.app.intent_graph.json_validator import validate_config, convert_config_to_list, get_config_statistics
 
 class SchematicGenerator:
@@ -62,19 +62,12 @@ class SchematicGenerator:
         return label
     
     def get_device_offset(self, device_type: str) -> float:
-        """Get offset based on device type and orientation"""
-        # Determine offset based on device type
-        if device_type.startswith('PDB3AC'):  # Analog signal
-            offset = 1.5 * 0.125
-        elif device_type.startswith('PDDW16SDGZ'):  # Digital IO
-            offset = -5.5 * 0.125
-        elif (device_type.startswith('PVDD1DGZ') or device_type.startswith('PVSS1DGZ') or 
-              device_type.startswith('PVDD2POC') or device_type.startswith('PVSS2DGZ')):  # Digital power/ground
-            offset = -8 * 0.125
-        else:  # Other analog power/ground devices
-            offset = 1.5 * 0.125
+        """Get offset based on device type and orientation (180nm process node)
         
-        return offset
+        Note: For 180nm, device offset is not needed, always returns 0.
+        """
+        # 180nm does not require device offset
+        return 0.0
     
     def get_device_suffix_and_orientation(self, position_desc: str) -> tuple[str, str]:
         """Automatically infer device suffix and orientation based on position description"""
@@ -168,47 +161,27 @@ class SchematicGenerator:
                     config['orientation'] = 'R270'
             return config
         
-        # If device already contains suffix, use directly
-        if base_device.endswith(('_H_G', '_V_G')):
-            # If user didn't specify orientation, automatically infer based on device suffix
-            if 'orientation' not in config:
-                if base_device.endswith('_H_G'):
-                    # Vertical device, determine orientation based on position
-                    if position_desc.startswith('left'):
-                        config['orientation'] = 'R270'
-                    else:  # right
-                        config['orientation'] = 'R90'
-                else:  # _H_G
-                    # Horizontal device, determine orientation based on position
-                    if position_desc.startswith('top'):
-                        config['orientation'] = 'R180'
-                    else:  # bottom
-                        config['orientation'] = 'R0'
-        else:
-            # For device without suffix, automatically add suffix and orientation based on position
-            if is_inner_pad:
-                # Inner ring pad: determine suffix and orientation based on first part of position description (side)
-                if '_' in position_desc:
-                    side = position_desc.split('_')[0]
-                else:
-                    side = 'left'  # Default value
-                
-                if side in ['left', 'right']:
-                    # Left and right sides use vertical devices
-                    suffix = '_V_G'
-                    orientation = 'R270' if side == 'left' else 'R90'
-                else:  # top, bottom
-                    # Top and bottom sides use horizontal devices
-                    suffix = '_H_G'
-                    orientation = 'R180' if side == 'top' else 'R0'
-                
-                config['device'] = base_device + suffix
-                config['orientation'] = orientation
+        # For 180nm, devices don't have _H_G or _V_G suffix
+        # Just set orientation based on position, keep device name as is
+        # Orientation mapping for 180nm (different from 28nm):
+        # left -> R180, right -> R0, top -> R90, bottom -> R270
+        if 'orientation' not in config:
+            # Determine orientation based on position description
+            if '_' in position_desc:
+                side = position_desc.split('_')[0]
             else:
-                    # Outer ring pad: use original logic
-                suffix, orientation = self.get_device_suffix_and_orientation(position_desc)
-                config['device'] = base_device + suffix
-                config['orientation'] = orientation
+                side = 'left'  # Default value
+            
+            if side == 'left':
+                config['orientation'] = 'R180'
+            elif side == 'right':
+                config['orientation'] = 'R0'
+            elif side == 'top':
+                config['orientation'] = 'R90'
+            elif side == 'bottom':
+                config['orientation'] = 'R270'
+            else:
+                config['orientation'] = 'R0'  # Default
         
         return config
     
@@ -264,18 +237,7 @@ class SchematicGenerator:
                         elif side == 'top':
                             y -= inner_offset  # Move down
                         
-                        # Apply device offset
-                        if device:
-                            offset = self.get_device_offset(device)
-                            if side == 'left':
-                                y -= offset  # Vertical offset
-                            elif side == 'right':
-                                y += offset  # Vertical offset
-                            elif side == 'bottom':
-                                x += offset  # Horizontal offset
-                            elif side == 'top':
-                                x -= offset  # Horizontal offset
-                        
+                        # For 180nm, device offset is not applied
                         return (x, y)
                 
                 # If no outer ring pad information, use original simple calculation
@@ -296,8 +258,17 @@ class SchematicGenerator:
                 raise ValueError(f"Cannot parse position description: {position_desc}")
         
         # Calculate ring parameters based on scale configuration
-        width_pads = ring_config.get('width', 12)   # Number of pads on top and bottom sides
-        height_pads = ring_config.get('height', 12) # Number of pads on left and right sides
+        # Support both top_count/bottom_count/left_count/right_count and width/height formats
+        if 'top_count' in ring_config or 'bottom_count' in ring_config:
+            top_count = ring_config.get('top_count', 12)
+            bottom_count = ring_config.get('bottom_count', 12)
+            left_count = ring_config.get('left_count', 12)
+            right_count = ring_config.get('right_count', 12)
+            width_pads = max(top_count, bottom_count)   # Pads along top/bottom
+            height_pads = max(left_count, right_count)  # Pads along left/right
+        else:
+            width_pads = ring_config.get('width', 12)   # Number of pads on top and bottom sides
+            height_pads = ring_config.get('height', 12) # Number of pads on left and right sides
         
         # Calculate spacing and dimensions
         spacing = 2.0  # Default spacing
@@ -360,20 +331,7 @@ class SchematicGenerator:
             elif side == 'top':
                 y += inner_offset  # Move down
         
-        # Apply device offset
-        if device:
-            offset = self.get_device_offset(device)
-            
-            # Apply offset based on side direction
-            if side == 'left':
-                y -= offset  # Vertical offset
-            elif side == 'right':
-                y += offset  # Vertical offset
-            elif side == 'bottom':
-                x += offset  # Horizontal offset
-            elif side == 'top':
-                x -= offset  # Horizontal offset
-        
+        # For 180nm, device offset is not applied
         return (x, y)
     
     def rotate_point(self, x, y, orientation):
@@ -390,11 +348,14 @@ class SchematicGenerator:
             return x, y
     
     def get_pin_side_from_center(self, pin_x, pin_y, center_x, center_y, orientation):
-        """Determine pin position based on rotation direction"""
-        if orientation in ['R0', 'R180']:
+        """Determine pin position based on rotation direction (180nm specific logic)"""
+        # For 180nm, orientation mapping is different:
+        # left->R180, right->R0, top->R90, bottom->R270
+        # So the judgment logic is reversed compared to 28nm
+        if orientation in ['R270', 'R90']:
             # Only judge up and down direction
             return 'top' if pin_y > center_y else 'bottom'
-        elif orientation in ['R90', 'R270']:
+        elif orientation in ['R0', 'R180']:
             # Only judge left and right direction
             return 'right' if pin_x > center_x else 'left'
         else:
@@ -409,8 +370,8 @@ class SchematicGenerator:
     def generate_pin_commands(self, pin_name, label_text, pin_x, pin_y, side,
                              create_wire=True, create_label=True, create_pin=True):
         """Generate pin-related SKILL commands"""
-        # Sanitize pin_name for SKILL instance name compatibility (replace < > with _)
-        pin_name = self.sanitize_skill_instance_name(pin_name)
+        # Do not sanitize pin_name - keep original pin name format (e.g., SEL_CORE<0>)
+        # pin_name = self.sanitize_skill_instance_name(pin_name)
         # Format label_text for SKILL net label compatibility (convert D<0>_CORE to D_CORE<0>)
         label_text = self.format_skill_net_label(label_text)
         
@@ -531,6 +492,7 @@ class SchematicGenerator:
         outer_pads = self.get_outer_pad_positions(normalized_instances, ring_config)
         
         commands = []
+        commands.append("cv = geGetWindowCellView()")
         
         loaded_devices = set()
         noConn_loaded = False  # Mark whether noConn component has been loaded
@@ -678,18 +640,31 @@ class SchematicGenerator:
         
         return commands
 
-def load_templates_from_json(json_file="device_templates.json"):
-    """Load device templates from JSON file"""
-    # Try multiple locations and filenames
-    possible_files = [
-        json_file,  # Original filename
-        os.path.join("src", "schematic", json_file),  # src/schematic directory
-        os.path.join("src", "scripts", "devices", json_file),  # src/scripts/devices directory
-        # Alternative filename
-        "IO_device_info_T28.json",
-        os.path.join("src", "schematic", "IO_device_info_T28.json"),
-        os.path.join("src", "scripts", "devices", "IO_device_info_T28.json"),
-    ]
+def load_templates_from_json(json_file=None):
+    """Load device templates from JSON file for 180nm process node
+    
+    Args:
+        json_file: Optional specific JSON file path. If None, will search for 180nm template files
+    """
+    # If json_file is provided, use it directly
+    if json_file:
+        possible_files = [
+            json_file,  # Original filename
+            os.path.join("src", "schematic", json_file),  # src/schematic directory
+            os.path.join("src", "scripts", "devices", json_file),  # src/scripts/devices directory
+        ]
+    else:
+        # Search for 180nm template files
+        possible_files = [
+            "device_templates_180.json",
+            os.path.join("src", "app", "schematic", "device_templates_180.json"),
+            os.path.join("src", "schematic", "device_templates_180.json"),
+            os.path.join("src", "scripts", "devices", "device_templates_180.json"),
+            "IO_device_info_T180.json",
+            os.path.join("src", "app", "schematic", "IO_device_info_T180.json"),
+            os.path.join("src", "schematic", "IO_device_info_T180.json"),
+            os.path.join("src", "scripts", "devices", "IO_device_info_T180.json"),
+        ]
     
     json_file = None
     for file_path in possible_files:
@@ -699,7 +674,7 @@ def load_templates_from_json(json_file="device_templates.json"):
     
     if json_file is None:
         raise FileNotFoundError(
-            f"Device template file not found. Tried: {', '.join(possible_files)}"
+            f"Device template file not found for 180nm process node. Tried: {', '.join(possible_files)}"
         )
     
     template_manager = DeviceTemplateManager()
@@ -707,7 +682,14 @@ def load_templates_from_json(json_file="device_templates.json"):
     return template_manager
 
 def generate_multi_device_schematic(config_list, output_file="multi_device_schematic.il", voltage_config=None, clockwise=False):
-    """Main function for generating multi-device schematic - supports unified configuration list and old format"""
+    """Main function for generating multi-device schematic for 180nm process node - supports unified configuration list and old format
+    
+    Args:
+        config_list: Configuration list (unified format or old format)
+        output_file: Output file path
+        voltage_config: Voltage configuration (deprecated, kept for compatibility)
+        clockwise: Whether to place devices clockwise
+    """
     
     # Ensure output directory exists
     output_dir = Path("output")
@@ -718,7 +700,7 @@ def generate_multi_device_schematic(config_list, output_file="multi_device_schem
     if not output_path.is_absolute() and "output" not in output_path.parts:
         output_file = output_dir / output_file
     
-    # Load device templates
+    # Load device templates for 180nm
     template_manager = load_templates_from_json()
     
     # Create generator and generate schematic

@@ -6,11 +6,31 @@ Converts SKILL dbCreateParamInstByMasterName calls to visual representation
 """
 
 import re
+import json
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
+
+# Get config directory path
+# layout_visualizer.py is in src/app/layout/T28/
+# config files are in src/app/layout/config/
+_CONFIG_DIR = Path(__file__).parent.parent / "config"
+
+def _load_28nm_config() -> Dict:
+    """Load 28nm device configuration from JSON file"""
+    config_file = _CONFIG_DIR / "lydevices_28.json"
+    if config_file.exists():
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+# Load 28nm configuration
+_28NM_CONFIG = _load_28nm_config()
 
 # Device type color mapping
 # Color scheme:
@@ -92,9 +112,24 @@ DEVICE_COLORS = {
 }
 
 # Device dimensions (in SKILL units)
-PAD_WIDTH = 20
-PAD_HEIGHT = 110
-CORNER_SIZE = 110  # Corner is square: 110×110
+# Load from config if available, otherwise use defaults from process_node_config
+_layout_params = _28NM_CONFIG.get("layout_params", {})
+if not _layout_params:
+    # Fallback to process_node_config defaults
+    try:
+        from ..process_node_config import PROCESS_NODE_CONFIGS
+        _28nm_base_config = PROCESS_NODE_CONFIGS.get("T28", {})
+        _layout_params = {
+            "pad_width": _28nm_base_config.get("pad_width", 20),
+            "pad_height": _28nm_base_config.get("pad_height", 110),
+            "corner_size": _28nm_base_config.get("corner_size", 110),
+        }
+    except ImportError:
+        _layout_params = {}
+
+PAD_WIDTH = _layout_params.get("pad_width", 20)
+PAD_HEIGHT = _layout_params.get("pad_height", 110)
+CORNER_SIZE = _layout_params.get("corner_size", 110)
 FILLER_WIDTH = 20  # Filler width: 20×110 (same as IO devices)
 FILLER_HEIGHT = 110  # Filler height: 20×110 (same as IO devices)
 INNER_PAD_WIDTH = 20  # Inner pad width: 20×110 (fills gap left by 10×110 filler)
@@ -143,32 +178,48 @@ def parse_skill_layout(il_file_path: str) -> List[Dict]:
         # Inner pads have instance names starting with "inner_pad_"
         is_inner_pad = inst_name.startswith('inner_pad_')
         
-        # IO devices (PDB3AC, PVDD, PVSS, PDDW16SDGZ, PVDD1DGZ, PVSS1DGZ, etc.) - these are the actual IO cells to draw
-        if 'PDB3AC' in cell_name or 'PVDD' in cell_name or 'PVSS' in cell_name or 'PDDW16SDGZ' in cell_name or 'PVDD1DGZ' in cell_name or 'PVSS1DGZ' in cell_name or 'PVSS2DGZ' in cell_name or 'PVDD2POC' in cell_name:
+        # Use configuration file to classify devices
+        digital_devices = _28NM_CONFIG.get("digital_devices", [])
+        analog_devices = _28NM_CONFIG.get("analog_devices", [])
+        corner_devices = _28NM_CONFIG.get("corner_devices", [])
+        filler_devices = _28NM_CONFIG.get("filler_devices", [])
+        cut_devices = _28NM_CONFIG.get("cut_devices", [])
+        
+        # Check device type using config
+        if any(dev in cell_name for dev in corner_devices):
+            device_type = cell_name
+            device_category = 'corner'
+        elif any(dev in cell_name for dev in filler_devices) or any(dev in cell_name for dev in cut_devices):
+            device_type = cell_name
+            device_category = 'filler'
+        elif any(dev in cell_name for dev in digital_devices) or any(dev in cell_name for dev in analog_devices):
             device_type = cell_name
             if is_inner_pad:
                 device_category = 'inner_pad'  # Inner pad (dual ring pad)
             else:
                 device_category = 'io'  # IO device category
         elif 'CORNER' in cell_name or 'PCORNER' in cell_name:
-            # Distinguish between analog corner (PCORNERA) and digital corner (PCORNER)
+            # Fallback for corner devices
             if 'PCORNERA' in cell_name:
                 device_type = 'PCORNERA'
             else:
                 device_type = 'PCORNER'  # Digital corner
             device_category = 'corner'
         elif 'FILLER' in cell_name:
-            # Distinguish between analog filler (PFILLER*A) and digital filler (PFILLER* without A)
-            # Use the full cell_name as device_type so legend can distinguish them
-            if 'A_G' in cell_name and 'PFILLER' in cell_name:
-                device_type = cell_name  # Analog filler (PFILLER20A_G, PFILLER10A_G)
-            else:
-                device_type = cell_name  # Digital filler (PFILLER20_G, PFILLER10_G)
+            # Fallback for filler devices
+            device_type = cell_name
             device_category = 'filler'
-            # Note: PFILLER10 and PFILLER10A are 10×110, PFILLER20 and PFILLER20A are 20×110
         elif 'RCUT' in cell_name:
+            # Fallback for separator
             device_type = 'PRCUTA'
             device_category = 'filler'  # Separator is also a filler type
+        elif 'PDB3AC' in cell_name or 'PVDD' in cell_name or 'PVSS' in cell_name or 'PDDW16SDGZ' in cell_name or 'PVDD1DGZ' in cell_name or 'PVSS1DGZ' in cell_name or 'PVSS2DGZ' in cell_name or 'PVDD2POC' in cell_name:
+            # Fallback for power/ground/IO devices
+            device_type = cell_name
+            if is_inner_pad:
+                device_category = 'inner_pad'
+            else:
+                device_category = 'io'
         
         devices.append({
             'inst_name': inst_name,
@@ -186,14 +237,51 @@ def parse_skill_layout(il_file_path: str) -> List[Dict]:
 
 
 def get_device_color(device_type: str) -> str:
-    """Get color for device type"""
+    """Get color for device type using config"""
     # Try exact match first
     if device_type in DEVICE_COLORS:
         return DEVICE_COLORS[device_type]
     
+    # Use config to determine color based on device category
+    digital_io = _28NM_CONFIG.get("digital_io", [])
+    analog_io = _28NM_CONFIG.get("analog_io", [])
+    digital_vol = _28NM_CONFIG.get("digital_vol", [])
+    analog_vol = _28NM_CONFIG.get("analog_vol", [])
+    corner_devices = _28NM_CONFIG.get("corner_devices", [])
+    filler_devices = _28NM_CONFIG.get("filler_devices", [])
+    cut_devices = _28NM_CONFIG.get("cut_devices", [])
+    
+    # Check if device matches any in config lists
+    if any(dev in device_type for dev in digital_io):
+        return '#32CD32'  # Medium green - Digital IO
+    elif any(dev in device_type for dev in digital_vol):
+        if 'PVDD' in device_type:
+            return '#90EE90'  # Light green - Digital power
+        else:
+            return '#228B22'  # Dark green - Digital ground
+    elif any(dev in device_type for dev in analog_io):
+        return '#4A90E2'  # Medium blue - Analog IO
+    elif any(dev in device_type for dev in analog_vol):
+        if 'PVDD1AC' in device_type or 'PVDD3AC' in device_type or 'PVDD3A' in device_type:
+            return '#5BA0F2' if 'PVDD1AC' in device_type else '#87CEEB' if 'PVDD3AC' in device_type else '#7EC8E3'  # Analog power
+        else:
+            return '#3A80D2' if 'PVSS1AC' in device_type else '#4682B4' if 'PVSS3AC' in device_type else '#3E7AB0'  # Analog ground
+    elif any(dev in device_type for dev in corner_devices):
+        if 'PCORNERA' in device_type:
+            return '#FF6B6B'  # Medium red - Analog corner
+        else:
+            return '#FF8888'  # Slightly lighter red - Digital corner
+    elif any(dev in device_type for dev in filler_devices + cut_devices):
+        if 'A_G' in device_type:
+            return '#D8D8D8'  # Very light gray - Analog filler
+        elif 'RCUT' in device_type:
+            return '#A0A0A0'  # Gray - Separator
+        else:
+            return '#C0C0C0'  # Light gray - Digital filler
+    
     # Try prefix match
     for key, color in DEVICE_COLORS.items():
-        if device_type.startswith(key):
+        if key != 'default' and device_type.startswith(key):
             return color
     
     return DEVICE_COLORS['default']
@@ -508,19 +596,37 @@ def visualize_layout_from_components(layout_components: List[Dict], output_path:
     # Add legend
     device_types_found = set(d['device_type'] for d in all_devices)
     
+    # Categorize devices using config
+    digital_io = _28NM_CONFIG.get("digital_io", [])
+    analog_io = _28NM_CONFIG.get("analog_io", [])
+    digital_vol = _28NM_CONFIG.get("digital_vol", [])
+    analog_vol = _28NM_CONFIG.get("analog_vol", [])
+    corner_devices = _28NM_CONFIG.get("corner_devices", [])
+    filler_devices = _28NM_CONFIG.get("filler_devices", [])
+    cut_devices = _28NM_CONFIG.get("cut_devices", [])
+    
     digital_io_types = []
     analog_io_types = []
     other_types = []
     
     for dev_type in sorted(device_types_found):
-        if 'PDDW16SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or \
-           'PVSS2DGZ' in dev_type or 'PVDD2POC' in dev_type:
+        # Check using config lists
+        if any(dev in dev_type for dev in digital_io + digital_vol):
             digital_io_types.append(dev_type)
-        elif 'PDB3AC' in dev_type or 'PVDD1AC' in dev_type or 'PVSS1AC' in dev_type or \
-             'PVDD3AC' in dev_type or 'PVSS3AC' in dev_type or 'PVDD3A' in dev_type or 'PVSS3A' in dev_type:
+        elif any(dev in dev_type for dev in analog_io + analog_vol):
             analog_io_types.append(dev_type)
-        else:
+        elif any(dev in dev_type for dev in corner_devices + filler_devices + cut_devices):
             other_types.append(dev_type)
+        else:
+            # Fallback to pattern matching
+            if 'PDDW16SDGZ' in dev_type or 'PVDD1DGZ' in dev_type or 'PVSS1DGZ' in dev_type or \
+               'PVSS2DGZ' in dev_type or 'PVDD2POC' in dev_type:
+                digital_io_types.append(dev_type)
+            elif 'PDB3AC' in dev_type or 'PVDD1AC' in dev_type or 'PVSS1AC' in dev_type or \
+                 'PVDD3AC' in dev_type or 'PVSS3AC' in dev_type or 'PVDD3A' in dev_type or 'PVSS3A' in dev_type:
+                analog_io_types.append(dev_type)
+            else:
+                other_types.append(dev_type)
     
     legend_elements = []
     

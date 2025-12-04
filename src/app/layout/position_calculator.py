@@ -43,21 +43,32 @@ class PositionCalculator:
         
         return width, height
     
-    def calculate_position_from_relative(self, relative_position: str, ring_config: dict) -> tuple:
+    def calculate_position_from_relative(self, relative_position: str, ring_config: dict, instance: dict = None) -> tuple:
         """Calculate actual coordinates and orientation based on relative position, supporting clockwise/counterclockwise"""
-        # Use fixed technology parameters from default configuration
-        pad_width = self.config["pad_width"]
-        pad_height = self.config["pad_height"]
-        corner_size = self.config["corner_size"]
-        pad_spacing = self.config["pad_spacing"]
-        placement_order = ring_config.get("placement_order", self.config["placement_order"])
-
-        width = ring_config.get("width", 3)
-        height = ring_config.get("height", 3)
+        # Use fixed technology parameters from default configuration (matching merge_source)
+        if instance:
+            pad_width = instance.get("pad_width", 80)
+            pad_height = instance.get("pad_height", 120)
+            corner_size = instance.get("corner_size", 130)
+        else:
+            pad_width = self.config.get("pad_width", 80)
+            pad_height = self.config.get("pad_height", 120)
+            corner_size = self.config.get("corner_size", 130)
         
-        # Calculate chip length and width separately
-        chip_width = width * pad_spacing + 2 * corner_size
-        chip_height = height * pad_spacing + 2 * corner_size
+        # Get chip dimensions and counts from ring_config (matching merge_source)
+        chip_width = ring_config.get("chip_width", 2250)
+        chip_height = ring_config.get("chip_height", 2160)
+        pad_spacing = ring_config.get("pad_spacing", 90)
+        placement_order = ring_config.get("placement_order", "counterclockwise")
+        top_count = ring_config.get("top_count", 12)
+        bottom_count = ring_config.get("bottom_count", 12)
+        left_count = ring_config.get("left_count", 12)
+        right_count = ring_config.get("right_count", 12)
+        
+        # Get process_node to determine offset from config
+        process_node = ring_config.get("process_node", self.config.get("process_node", "T28"))
+        layout_params = ring_config.get("layout_params", {})
+        offset = layout_params.get("pad_offset", 20 if process_node == "T28" else 10)
 
         # Parse relative positions
         if relative_position == "top_left":
@@ -69,14 +80,14 @@ class PositionCalculator:
         elif relative_position == "bottom_right":
             return ([chip_width, 0], "R90")
 
-        # Parse edge positions
+        # Parse edge positions (28nm: no offset, 180nm: +10 offset)
         if relative_position.startswith("top_"):
             index = int(relative_position.split("_")[1])
             if placement_order == "clockwise":
                 real_index = index
             else:
-                real_index = (width - 1) - index
-            x = corner_size + real_index * pad_spacing + 2 * pad_width
+                real_index = (top_count - 1) - index
+            x = corner_size + real_index * pad_spacing + pad_width + offset
             y = chip_height
             return ([x, y], "R180")
         elif relative_position.startswith("bottom_"):
@@ -84,8 +95,8 @@ class PositionCalculator:
             if placement_order == "clockwise":
                 real_index = index
             else:
-                real_index = (width - 1) - index
-            x = chip_width - corner_size - real_index * pad_spacing - 2 * pad_width
+                real_index = (bottom_count - 1) - index
+            x = chip_width - corner_size - real_index * pad_spacing - pad_width - offset
             y = 0
             return ([x, y], "R0")
         elif relative_position.startswith("left_"):
@@ -93,18 +104,18 @@ class PositionCalculator:
             if placement_order == "clockwise":
                 real_index = index
             else:
-                real_index = (height - 1) - index
+                real_index = (left_count - 1) - index
             x = 0
-            y = corner_size + real_index * pad_spacing + 2 * pad_width
+            y = corner_size + real_index * pad_spacing + pad_width + offset
             return ([x, y], "R270")
         elif relative_position.startswith("right_"):
             index = int(relative_position.split("_")[1])
             if placement_order == "clockwise":
                 real_index = index
             else:
-                real_index = (height - 1) - index
+                real_index = (right_count - 1) - index
             x = chip_width
-            y = chip_height - corner_size - real_index * pad_spacing - 2 * pad_width
+            y = chip_height - corner_size - real_index * pad_spacing - pad_width - offset
             return ([x, y], "R90")
 
         # Default return to origin
@@ -146,21 +157,26 @@ class PositionCalculator:
         
         return [x1, y1]  # Default return to first position
     
-    def calculate_filler_position_from_relative(self, relative_position: str, ring_config: dict) -> tuple:
+    def calculate_filler_position_from_relative(self, relative_position: str, ring_config: dict, instance: dict = None) -> tuple:
         """Calculate actual coordinates and orientation of filler based on relative position"""
-        # Use fixed technology parameters from default configuration
-        pad_width = self.config["pad_width"]
-        pad_height = self.config["pad_height"]
-        corner_size = self.config["corner_size"]
-        pad_spacing = self.config["pad_spacing"]
-        placement_order = ring_config.get("placement_order", self.config["placement_order"])
-
-        width = ring_config.get("width", 3)
-        height = ring_config.get("height", 3)
+        # Use fixed technology parameters from default configuration (matching merge_source)
+        if instance:
+            pad_width = instance.get("pad_width", 80)
+            pad_height = instance.get("pad_height", 120)
+        else:
+            pad_width = self.config.get("pad_width", 80)
+            pad_height = self.config.get("pad_height", 120)
+        corner_size = ring_config.get("corner_size", 130)
+        pad_spacing = ring_config.get("pad_spacing", 90)
+        placement_order = ring_config.get("placement_order", "counterclockwise")
         
-        # Calculate chip length and width separately
-        chip_width = width * pad_spacing + 2 * corner_size
-        chip_height = height * pad_spacing + 2 * corner_size
+        # Get chip dimensions and counts from ring_config (matching merge_source)
+        chip_width = ring_config.get("chip_width", 2250)
+        chip_height = ring_config.get("chip_height", 2160)
+        top_count = ring_config.get("top_count", 12)
+        bottom_count = ring_config.get("bottom_count", 12)
+        left_count = ring_config.get("left_count", 12)
+        right_count = ring_config.get("right_count", 12)
 
         # Parse filler position format
         parts = relative_position.split('_')
@@ -172,24 +188,24 @@ class PositionCalculator:
             
             if side == "left":
                 if corner_index == 0:  # Top-left corner
-                    return ([0, chip_height - pad_width], "R270")
+                    return ([0, chip_height - corner_size], "R270")
                 elif corner_index == 3:  # Bottom-left corner
-                    return ([0, pad_width], "R270")
+                    return ([0, corner_size], "R270")
             elif side == "right":
                 if corner_index == 0:  # Top-right corner
-                    return ([chip_width, chip_height - pad_width], "R90")
+                    return ([chip_width, chip_height - corner_size], "R90")
                 elif corner_index == 3:  # Bottom-right corner
-                    return ([chip_width, pad_width], "R90")
+                    return ([chip_width, corner_size], "R90")
             elif side == "top":
                 if corner_index == 0:  # Top-left corner
-                    return ([pad_width, chip_height], "R180")
+                    return ([corner_size, chip_height], "R180")
                 elif corner_index == 3:  # Top-right corner
-                    return ([chip_width - pad_width, chip_height], "R180")
+                    return ([chip_width - corner_size, chip_height], "R180")
             elif side == "bottom":
                 if corner_index == 0:  # Bottom-left corner
-                    return ([pad_width, 0], "R0")
+                    return ([corner_size, 0], "R0")
                 elif corner_index == 3:  # Bottom-right corner
-                    return ([chip_width - pad_width, 0], "R0")
+                    return ([chip_width - corner_size - 10, 0], "R0")
         
         elif len(parts) >= 3 and parts[1].isdigit():
             # Pad filler format: side_pad_index_filler_index
@@ -197,12 +213,12 @@ class PositionCalculator:
             pad_index = int(parts[1])
             filler_index = int(parts[2])
             
-            # Calculate pad position
+            # Calculate pad position (matching merge_source)
             if side == "left":
                 if placement_order == "clockwise":
                     real_index = pad_index
                 else:
-                    real_index = (height - 1) - pad_index
+                    real_index = (left_count - 1) - pad_index
                 pad_x = 0
                 pad_y = corner_size + real_index * pad_spacing + 2 * pad_width
                 
@@ -216,7 +232,7 @@ class PositionCalculator:
                 if placement_order == "clockwise":
                     real_index = pad_index
                 else:
-                    real_index = (height - 1) - pad_index
+                    real_index = (right_count - 1) - pad_index
                 pad_x = chip_width
                 pad_y = chip_height - corner_size - real_index * pad_spacing - 2 * pad_width
                 
@@ -230,7 +246,7 @@ class PositionCalculator:
                 if placement_order == "clockwise":
                     real_index = pad_index
                 else:
-                    real_index = (width - 1) - pad_index
+                    real_index = (top_count - 1) - pad_index
                 pad_x = corner_size + real_index * pad_spacing + 2 * pad_width
                 pad_y = chip_height
                 
@@ -244,7 +260,7 @@ class PositionCalculator:
                 if placement_order == "clockwise":
                     real_index = pad_index
                 else:
-                    real_index = (width - 1) - pad_index
+                    real_index = (bottom_count - 1) - pad_index
                 pad_x = chip_width - corner_size - real_index * pad_spacing - 2 * pad_width
                 pad_y = 0
                 
