@@ -5,8 +5,8 @@ Inner Pad Processing Module
 """
 
 from typing import List, Tuple
-from .device_classifier import DeviceClassifier
-from .position_calculator import PositionCalculator
+from ..device_classifier import DeviceClassifier
+from ..position_calculator import PositionCalculator
 
 class InnerPadHandler:
     """Inner Pad Handler"""
@@ -134,23 +134,28 @@ class InnerPadHandler:
             x, y = position
             position_str = inner_pad["position_str"]
             # Generate SKILL commands for inner pads
-            library_name = ring_config.get("library_name", "tphn28hpcpgv18")
+            device_masters = ring_config.get("device_masters", {})
+            library_name = ring_config.get("library_name", device_masters.get("default_library", "tphn28hpcpgv18"))
+            pad_library = device_masters.get("pad_library", "PAD")
+            pad60nu_master = device_masters.get("pad60nu_master", "PAD60NU")
             view_name = ring_config.get("view_name", "layout")
             # Sanitize instance names for SKILL compatibility (replace < > with _)
             sanitized_name = self.sanitize_skill_instance_name(f"inner_pad_{name}_{position_str}")
             sanitized_pad_name = self.sanitize_skill_instance_name(f"inner_pad60nu_{name}_{position_str}")
             skill_commands.append(f'dbCreateParamInstByMasterName(cv "{library_name}" "{device}" "{view_name}" "{sanitized_name}" list({x} {y}) "{orientation}")')
-            skill_commands.append(f'dbCreateParamInstByMasterName(cv "PAD" "PAD60NU" "layout" "{sanitized_pad_name}" list({x} {y}) "{orientation}")')
+            skill_commands.append(f'dbCreateParamInstByMasterName(cv "{pad_library}" "{pad60nu_master}" "layout" "{sanitized_pad_name}" list({x} {y}) "{orientation}")')
         
         return skill_commands
     
     def get_all_digital_pads_with_inner(self, outer_pads: List[dict], inner_pads: List[dict], ring_config: dict) -> List[dict]:
         """Get all digital IO pad information (including outer and inner rings)"""
+        # Get process_node from ring_config or config
+        process_node = ring_config.get("process_node", self.config.get("process_node", "T28"))
         digital_pads = []
         
         # Outer ring digital IO pads
         for pad in outer_pads:
-            if DeviceClassifier.is_digital_io_device(pad["device"]):
+            if DeviceClassifier.is_digital_io_device(pad["device"], process_node):
                 digital_pads.append({
                     "position": pad["position"],
                     "orientation": pad["orientation"],
@@ -162,7 +167,7 @@ class InnerPadHandler:
         
         # Inner ring digital IO pads
         for inner_pad in inner_pads:
-            if DeviceClassifier.is_digital_io_device(inner_pad["device"]):
+            if DeviceClassifier.is_digital_io_device(inner_pad["device"], process_node):
                 # If position is already absolute coordinates, use directly
                 if isinstance(inner_pad["position"], list):
                     position = inner_pad["position"]
@@ -184,10 +189,12 @@ class InnerPadHandler:
     
     def get_all_digital_pads_with_inner_any(self, outer_pads: List[dict], inner_pads: List[dict], ring_config: dict) -> List[dict]:
         """Get all digital pad information (including outer and inner rings, all digital pads, not limited to IO)"""
+        # Get process_node from ring_config or config
+        process_node = ring_config.get("process_node", self.config.get("process_node", "T28"))
         digital_pads = []
         # Outer ring digital pads
         for pad in outer_pads:
-            if DeviceClassifier.is_digital_device(pad["device"]):
+            if DeviceClassifier.is_digital_device(pad["device"], process_node):
                 digital_pads.append({
                     "position": pad["position"],
                     "orientation": pad["orientation"],
@@ -198,7 +205,7 @@ class InnerPadHandler:
                 })
         # Inner ring digital pads
         for inner_pad in inner_pads:
-            if DeviceClassifier.is_digital_device(inner_pad["device"]):
+            if DeviceClassifier.is_digital_device(inner_pad["device"], process_node):
                 if isinstance(inner_pad["position"], list):
                     position = inner_pad["position"]
                     orientation = inner_pad["orientation"]

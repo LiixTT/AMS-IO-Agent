@@ -151,3 +151,6 @@ TODO.md
 
 # logs files
 logs/
+
+# merge_source directory
+merge_source/

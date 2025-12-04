@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+T28 Layout Generator - Complete independent implementation for T28 process node
+No inheritance, completely standalone
+"""
+
+import os
+import json
+from typing import Dict, Tuple, List
+
+from ..device_classifier import DeviceClassifier
+from ..voltage_domain import VoltageDomainHandler
+from ..position_calculator import PositionCalculator
+from ..filler_generator import FillerGenerator
+from ..layout_validator import LayoutValidator
+from .inner_pad_handler import InnerPadHandler
+from .skill_generator import SkillGeneratorT28
+from .auto_filler import AutoFillerGeneratorT28
+from ..process_node_config import get_process_node_config
+from .layout_visualizer import visualize_layout
+
+
+class LayoutGeneratorT28:
+    """T28 Layout Generator - Standalone implementation"""
+    
+    def __init__(self):
+        # Get 28nm configuration
+        node_config = get_process_node_config("T28")
+        
+        # Default configuration for 28nm
+        self.config = {
+            "library_name": node_config["library_name"],
+            "view_name": "layout",
+            "pad_width": node_config["pad_width"],
+            "pad_height": node_config["pad_height"],
+            "corner_size": node_config["corner_size"],
+            "pad_spacing": node_config["pad_spacing"],
+            "placement_order": "counterclockwise",
+            "filler_components": node_config["filler_components"],
+            "process_node": "T28"
+        }
+        
+        # Store device_masters from config
+        if "device_masters" in node_config:
+            self.config["device_masters"] = node_config["device_masters"]
+        
+        # Initialize modules
+        self.position_calculator = PositionCalculator(self.config)
+        self.voltage_domain_handler = VoltageDomainHandler()
+        self.filler_generator = FillerGenerator()
+        self.layout_validator = LayoutValidator()
+        self.inner_pad_handler = InnerPadHandler(self.config)
+        self.skill_generator = SkillGeneratorT28(self.config)
+        self.auto_filler_generator = AutoFillerGeneratorT28(self.config)
+    
+    def sanitize_skill_instance_name(self, name: str) -> str:
+        """Sanitize instance names for SKILL compatibility"""
+        sanitized = name.replace('<', '_').replace('>', '_')
+        while '__' in sanitized:
+            sanitized = sanitized.replace('__', '_')
+        return sanitized
+    
+    def set_config(self, config: dict):
+        """Set configuration parameters"""
+        self.config.update(config)
+        self.position_calculator.config = self.config
+        self.inner_pad_handler.config = self.config
+        self.skill_generator.config = self.config
+        self.auto_filler_generator.config = self.config
+    
+    def calculate_chip_size(self, layout_components: List[dict]) -> Tuple[int, int]:
+        """Calculate chip size based on layout components"""
+        return self.position_calculator.calculate_chip_size(layout_components)
+    
+    def convert_relative_to_absolute(self, instances: List[dict], ring_config: dict) -> List[dict]:
+        """Convert relative positions to absolute positions for 28nm format"""
+        converted_components = []
+        inner_pads = []
+        
+        for instance in instances:
+            relative_pos = instance.get("position", "")
+            name = instance.get("name", "")
+            device = instance.get("device", "")
+            if not device:
+                raise ValueError(f"❌ Error: Instance '{name}' must have 'device' field")
+            
+            component_type = instance.get("type", "pad")
+            io_direction = instance.get("io_direction", "")
+            direction = instance.get("direction", "")
+            voltage_domain = instance.get("voltage_domain", {})
+            pin_connection = instance.get("pin_connection", {})
+            
+            if component_type == "inner_pad":
+                inner_pads.append(instance)
+                continue
+            
+            # Calculate position
+            if component_type == "filler":
+                position, orientation = self.position_calculator.calculate_filler_position_from_relative(relative_pos, ring_config)
+            else:
+                position, orientation = self.position_calculator.calculate_position_from_relative(relative_pos, ring_config)
+            
+            component = {
+                "type": component_type,
+                "name": name,
+                "device": device,
+                "position": position,
+                "orientation": orientation
+            }
+            
+            if relative_pos:
+                component["position_str"] = relative_pos
+            
+            if direction:
+                component["io_direction"] = direction
+            elif io_direction:
+                component["io_direction"] = io_direction
+            
+            if voltage_domain:
+                component["voltage_domain"] = voltage_domain
+            if pin_connection:
+                component["pin_connection"] = pin_connection
+            
+            converted_components.append(component)
+        
+        # Check corners
+        has_corners = any(comp.get("type") == "corner" for comp in converted_components)
+        if not has_corners:
+            raise ValueError("❌ Error: Corner components are missing in the intent graph!")
+        
+        # Handle inner pads
+        for inner_pad in inner_pads:
+            name = inner_pad.get("name", "")
+            device = inner_pad.get("device", "")
+            if not device:
+                raise ValueError(f"❌ Error: Inner pad '{name}' must have 'device' field")
+            
+            position_str = inner_pad.get("position", "")
+            direction = inner_pad.get("direction", "")
+            io_direction = inner_pad.get("io_direction", "")
+            voltage_domain = inner_pad.get("voltage_domain", {})
+            pin_connection = inner_pad.get("pin_connection", {})
+            
+            outer_pads_for_inner = [comp for comp in converted_components if comp.get("type") == "pad"]
+            position, orientation = self.inner_pad_handler.calculate_inner_pad_position(position_str, outer_pads_for_inner, ring_config)
+            
+            component = {
+                "type": "inner_pad",
+                "name": name,
+                "device": device,
+                "position": position,
+                "orientation": orientation,
+                "position_str": position_str
+            }
+            
+            if direction:
+                component["io_direction"] = direction
+            elif io_direction:
+                component["io_direction"] = io_direction
+            if voltage_domain:
+                component["voltage_domain"] = voltage_domain
+            if pin_connection:
+                component["pin_connection"] = pin_connection
+            
+            converted_components.append(component)
+        
+        return converted_components
+
+
+def generate_layout_from_json(json_file: str, output_file: str = "generated_layout.il"):
+    """Generate 28nm layout from JSON file"""
+    print(f"📖 Reading intent graph file: {json_file}")
+    print(f"🔧 Using process node: 28nm")
+    
+    with open(json_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    
+    instances = config.get("instances", [])
+    ring_config = config.get("ring_config", {})
+    
+    # Override process_node if specified
+    if "process_node" in ring_config:
+        ring_config["process_node"] = "T28"
+    
+    generator = LayoutGeneratorT28()
+    
+    # Normalize ring_config format
+    if "width" in ring_config and "chip_width" not in ring_config:
+        width = ring_config.get("width", 3)
+        height = ring_config.get("height", 3)
+        pad_width = ring_config.get("pad_width", generator.config["pad_width"])
+        pad_height = ring_config.get("pad_height", generator.config["pad_height"])
+        corner_size = ring_config.get("corner_size", generator.config["corner_size"])
+        pad_spacing = ring_config.get("pad_spacing", generator.config["pad_spacing"])
+        
+        ring_config["chip_width"] = width * pad_spacing + corner_size * 2
+        ring_config["chip_height"] = height * pad_spacing + corner_size * 2
+        
+        if "top_count" not in ring_config:
+            ring_config["top_count"] = width
+        if "bottom_count" not in ring_config:
+            ring_config["bottom_count"] = width
+        if "left_count" not in ring_config:
+            ring_config["left_count"] = height
+        if "right_count" not in ring_config:
+            ring_config["right_count"] = height
+    
+    # Merge top-level config
+    if "library_name" in config and "library_name" not in ring_config:
+        ring_config["library_name"] = config["library_name"]
+    if "cell_name" in config and "cell_name" not in ring_config:
+        ring_config["cell_name"] = config["cell_name"]
+    
+    generator.set_config(ring_config)
+    # Ensure chip_width and chip_height are in config for auto_filler (after calculation)
+    if "chip_width" in ring_config:
+        generator.config["chip_width"] = ring_config["chip_width"]
+        generator.auto_filler_generator.config["chip_width"] = ring_config["chip_width"]
+    if "chip_height" in ring_config:
+        generator.config["chip_height"] = ring_config["chip_height"]
+        generator.auto_filler_generator.config["chip_height"] = ring_config["chip_height"]
+    if "pad_width" not in ring_config:
+        ring_config["pad_width"] = generator.config["pad_width"]
+    if "pad_height" not in ring_config:
+        ring_config["pad_height"] = generator.config["pad_height"]
+    if "corner_size" not in ring_config:
+        ring_config["corner_size"] = generator.config["corner_size"]
+    if "pad_spacing" not in ring_config:
+        ring_config["pad_spacing"] = generator.config["pad_spacing"]
+    if "library_name" not in ring_config:
+        ring_config["library_name"] = generator.config["library_name"]
+    if "view_name" not in ring_config:
+        ring_config["view_name"] = generator.config["view_name"]
+    if "device_masters" not in ring_config:
+        ring_config["device_masters"] = generator.config.get("device_masters", {})
+    
+    print("✅ Configuration parameters set")
+    
+    # Convert relative positions
+    if any("position" in instance and "_" in str(instance["position"]) for instance in instances):
+        instances = generator.convert_relative_to_absolute(instances, ring_config)
+    
+    # Separate components
+    outer_pads = []
+    inner_pads = []
+    corners = []
+    
+    for instance in instances:
+        if instance.get("type") == "inner_pad":
+            inner_pads.append(instance)
+        elif instance.get("type") == "pad":
+            outer_pads.append(instance)
+        elif instance.get("type") == "corner":
+            corners.append(instance)
+    
+    print(f"📊 Outer ring pads: {len(outer_pads)}")
+    print(f"📊 Inner ring pads: {len(inner_pads)}")
+    print(f"📊 Corners: {len(corners)}")
+    
+    # Validate
+    validation_components = outer_pads + corners
+    process_node = ring_config.get("process_node", "T28")
+    validation_result = generator.layout_validator.validate_layout_rules(validation_components, process_node)
+    if not validation_result["valid"]:
+        print(f"❌ Layout rule validation failed: {validation_result['message']}")
+        return None
+    
+    # Check fillers
+    all_instances = instances
+    existing_fillers = [comp for comp in all_instances if comp.get("type") == "filler" or 
+                        DeviceClassifier.is_filler_device(comp.get("device", ""), "T28")]
+    existing_separators = [comp for comp in all_instances if comp.get("type") == "separator" or 
+                          DeviceClassifier.is_separator_device(comp.get("device", ""), "T28")]
+    
+    # Update chip dimensions in auto_filler config before generating fillers (critical for correct filler placement)
+    if "chip_width" in ring_config:
+        generator.auto_filler_generator.config["chip_width"] = ring_config["chip_width"]
+    if "chip_height" in ring_config:
+        generator.auto_filler_generator.config["chip_height"] = ring_config["chip_height"]
+    
+    if existing_fillers or existing_separators:
+        print(f"🔍 Detected filler components in JSON: {len(existing_fillers)} fillers, {len(existing_separators)} separators")
+        all_components_with_fillers = validation_components
+    else:
+        all_components_with_fillers = generator.auto_filler_generator.auto_insert_fillers_with_inner_pads(validation_components, inner_pads)
+    
+    # Generate SKILL script
+    print("🚀 Starting Layout Skill script generation...")
+    skill_commands = []
+    
+    skill_commands.append("cv = geGetWindowCellView()")
+    skill_commands.append("; Generated Layout Script with Dual Ring Support")
+    skill_commands.append("")
+    
+    # Sort components
+    placement_order = ring_config.get("placement_order", "counterclockwise")
+    all_components = outer_pads + corners
+    sorted_components = generator.position_calculator.sort_components_by_position(all_components, placement_order)
+    
+    # 1. Generate all components
+    skill_commands.append("; ==================== All Components (Sorted by Placement Order) ====================")
+    for component in sorted_components:
+        x, y = component["position"]
+        orientation = component["orientation"]
+        device = component["device"]
+        name = component["name"]
+        component_type = component["type"]
+        position_str = component.get('position_str', 'abs')
+        
+        sanitized_name = generator.sanitize_skill_instance_name(f"{name}_{position_str}")
+        skill_commands.append(f'dbCreateParamInstByMasterName(cv "{ring_config.get("library_name", "tphn28hpcpgv18")}" "{device}" "{ring_config.get("view_name", "layout")}" "{sanitized_name}" list({x} {y}) "{orientation}")')
+        
+        # Add PAD60GU for pad components (28nm specific)
+        if component_type == "pad":
+            device_masters = ring_config.get("device_masters", {})
+            pad_library = device_masters.get("pad_library", "PAD")
+            pad_master = device_masters.get("pad60_master", "PAD60GU")
+            sanitized_pad_name = generator.sanitize_skill_instance_name(f"pad60gu_{name}_{position_str}")
+            skill_commands.append(f'dbCreateParamInstByMasterName(cv "{pad_library}" "{pad_master}" "layout" "{sanitized_pad_name}" list({x} {y}) "{orientation}")')
+    
+    skill_commands.append("")
+    
+    # 2. Inner Ring Pads
+    if inner_pads:
+        skill_commands.append("; ==================== Inner Ring Pads ====================")
+        inner_pad_commands = generator.inner_pad_handler.generate_inner_pad_skill_commands(inner_pads, outer_pads, ring_config)
+        skill_commands.extend(inner_pad_commands)
+        skill_commands.append("")
+    
+    # 3. Filler components
+    skill_commands.append("; ==================== Filler Components ====================")
+    
+    if existing_fillers or existing_separators:
+        for instance in all_instances:
+            device = instance.get("device", "")
+            if instance.get("type") == "filler" or DeviceClassifier.is_filler_device(device, "T28"):
+                position = instance.get("position", [0, 0])
+                orientation = instance.get("orientation", "R0")
+                device = instance.get("device", "")
+                name = instance.get("name", "")
+                x, y = position
+                sanitized_name = generator.sanitize_skill_instance_name(name)
+                skill_commands.append(f'dbCreateParamInstByMasterName(cv "{ring_config.get("library_name", "tphn28hpcpgv18")}" "{device}" "{ring_config.get("view_name", "layout")}" "{sanitized_name}" list({x} {y}) "{orientation}")')
+    else:
+        for filler in all_components_with_fillers[len(validation_components):]:
+            x, y = filler["position"]
+            orientation = filler["orientation"]
+            device = filler["device"]
+            name = filler["name"]
+            sanitized_name = generator.sanitize_skill_instance_name(name)
+            skill_commands.append(f'dbCreateParamInstByMasterName(cv "{ring_config.get("library_name", "tphn28hpcpgv18")}" "{device}" "{ring_config.get("view_name", "layout")}" "{sanitized_name}" list({x} {y}) "{orientation}")')
+    
+    skill_commands.append("")
+    
+    # 4. Digital IO features
+    skill_commands.append("; ==================== Digital IO Features (with Inner Pad Support) ====================")
+    digital_io_commands = generator.skill_generator.generate_digital_io_features_with_inner(outer_pads, inner_pads, ring_config)
+    skill_commands.extend(digital_io_commands)
+    skill_commands.append("")
+    
+    # 5. Pin labels
+    skill_commands.append("; ==================== Pin Labels (with Inner Pad Support) ====================")
+    pin_label_commands = generator.skill_generator.generate_pin_labels_with_inner(outer_pads, inner_pads, ring_config)
+    skill_commands.extend(pin_label_commands)
+    skill_commands.append("")
+    skill_commands.append("dbSave(cv)")
+    skill_commands.append("t")
+    
+    # Write to file
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(skill_commands))
+    
+    # Generate visualization (28nm uses layout_visualizer)
+    try:
+        output_dir = os.path.dirname(output_file) or "output"
+        vis_name = os.path.splitext(os.path.basename(output_file))[0] + "_visualization.png"
+        visualization_path = os.path.join(output_dir, vis_name)
+        os.makedirs(output_dir, exist_ok=True)
+        visualize_layout(output_file, visualization_path)
+        print(f"📊 Visualization generated: {visualization_path}")
+    except Exception as e:
+        print(f"⚠️  Visualization generation failed: {e}")
+    
+    # Calculate chip size
+    chip_width, chip_height = generator.calculate_chip_size(validation_components)
+    total_components = len(all_components_with_fillers) + len(inner_pads) * 2
+    
+    print(f"📐 Chip size: {chip_width} x {chip_height}")
+    print(f"📊 Total components: {total_components}")
+    if inner_pads:
+        print(f"📊 Inner ring pads: {len(inner_pads)}")
+    print(f"✅ Layout Skill script generated: {output_file}")
+    
+    return output_file
+

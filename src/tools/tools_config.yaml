@@ -66,6 +66,12 @@ tool_groups:
       - validate_intent_graph
       - generate_io_ring_layout
   
+  image_vision:
+    enabled: true
+    tools:
+      - analyze_image_path
+      - analyze_image_b64
+  
   user_profile:
     enabled: true
     tools:
