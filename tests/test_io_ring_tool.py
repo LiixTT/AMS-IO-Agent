@@ -26,31 +26,88 @@ def test_validate_config():
     """Test configuration validation functionality"""
     print("✅ Testing configuration validation functionality...")
     
-    # Test simple configuration
-    result = validate_intent_graph("output/example/intent_graph.json")
-    assert isinstance(result, str), "validate_intent_graph should return a string"
+    # Test 28nm configuration
+    print("\n📌 Test 28nm configuration:")
+    print("="*50)
+    t28_config = "output/example_T28/intent_graph.json"
+    if Path(t28_config).exists():
+        result = validate_intent_graph(t28_config)
+        assert isinstance(result, str), "validate_intent_graph should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t28_config}")
+    
+    # Test 180nm configuration
+    print("\n📌 Test 180nm configuration:")
+    print("="*50)
+    t180_config = "output/example_T180/intent_graph.json"
+    if Path(t180_config).exists():
+        result = validate_intent_graph(t180_config)
+        assert isinstance(result, str), "validate_intent_graph should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t180_config}")
+    
     print()
 
 def test_generate_schematic():
     """Test generate schematic functionality"""
     print("🎨 Testing generate IO ring schematic...")
     
-    # Test 3: Specify complete output path
-    print("Test 3: Specify complete output path")
-    result = generate_io_ring_schematic("output/example/intent_graph.json", "output/example/io_ring_schematic.il")
-    assert isinstance(result, str), "generate_io_ring_schematic should return a string"
-    print(result)
+    # Test 28nm process node
+    print("\n📌 Test 28nm process node:")
+    print("="*50)
+    t28_config = "output/example_T28/intent_graph.json"
+    t28_output = "output/example_T28/io_ring_schematic.il"
+    if Path(t28_config).exists():
+        result = generate_io_ring_schematic(t28_config, t28_output, process_node="T28")
+        assert isinstance(result, str), "generate_io_ring_schematic should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t28_config}")
+    
+    # Test 180nm process node
+    print("\n📌 Test 180nm process node:")
+    print("="*50)
+    t180_config = "output/example_T180/intent_graph.json"
+    t180_output = "output/example_T180/io_ring_schematic.il"
+    if Path(t180_config).exists():
+        result = generate_io_ring_schematic(t180_config, t180_output, process_node="T180")
+        assert isinstance(result, str), "generate_io_ring_schematic should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t180_config}")
+    
     print()
 
 def test_generate_layout():
     """Test generate layout functionality"""
     print("🏗️ Testing generate IO ring layout...")
     
-    # Test 3: Specify complete output path
-    print("Test 3: Specify complete output path")
-    result = generate_io_ring_layout("output/example/intent_graph.json", "output/example/io_ring_layout.il")
-    assert isinstance(result, str), "generate_io_ring_layout should return a string"
-    print(result)
+    # Test 28nm process node
+    print("\n📌 Test 28nm process node:")
+    print("="*50)
+    t28_config = "output/example_T28/intent_graph.json"
+    t28_output = "output/example_T28/io_ring_layout.il"
+    if Path(t28_config).exists():
+        result = generate_io_ring_layout(t28_config, t28_output, process_node="T28")
+        assert isinstance(result, str), "generate_io_ring_layout should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t28_config}")
+    
+    # Test 180nm process node
+    print("\n📌 Test 180nm process node:")
+    print("="*50)
+    t180_config = "output/example_T180/intent_graph.json"
+    t180_output = "output/example_T180/io_ring_layout.il"
+    if Path(t180_config).exists():
+        result = generate_io_ring_layout(t180_config, t180_output, process_node="T180")
+        assert isinstance(result, str), "generate_io_ring_layout should return a string"
+        print(result)
+    else:
+        print(f"⚠️  Config file not found: {t180_config}")
+    
     print()
 
 def main():

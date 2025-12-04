@@ -55,6 +55,10 @@ TOOL_REGISTRY = {
     "validate_intent_graph": ("src.tools.io_ring_generator_tool", "validate_intent_graph"),
     "generate_io_ring_layout": ("src.tools.io_ring_generator_tool", "generate_io_ring_layout"),
     
+    # Image Vision
+    "analyze_image_path": ("src.tools.image_vision_tool", "analyze_image_path"),
+    "analyze_image_b64": ("src.tools.image_vision_tool", "analyze_image_b64"),
+    
     # User profile management (write-only, profile is pre-loaded in system prompt)
     "update_user_profile": ("src.tools.user_profile_tool", "update_user_profile"),
     
@@ -175,6 +179,13 @@ def get_default_config() -> Dict[str, Any]:
                 "generate_io_ring_schematic",
                 "validate_intent_graph",
                 "generate_io_ring_layout",
+            ]
+        },
+        "image_vision": {
+            "enabled": True,
+            "tools": [
+                "analyze_image_path",
+                "analyze_image_b64",
             ]
         },
         "user_profile": {

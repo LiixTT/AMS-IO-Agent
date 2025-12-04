@@ -17,6 +17,9 @@ smolagents[gradio]
 # Data Processing
 openpyxl
 
+# HTTP Requests (for image vision API)
+requests>=2.28
+
 # Visualization
 matplotlib
 

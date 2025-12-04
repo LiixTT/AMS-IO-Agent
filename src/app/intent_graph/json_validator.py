@@ -19,12 +19,33 @@ def validate_config(config: Dict[str, Any]) -> bool:
         return False
     
     ring_config = config['ring_config']
-    if 'width' not in ring_config or 'height' not in ring_config:
-        print("❌ Error: ring_config missing width or height field")
+    
+    # Get process node (default to T28 for backward compatibility)
+    # Normalize process node (e.g., "180nm" -> "T180")
+    from src.app.layout.device_classifier import _normalize_process_node
+    raw_process_node = ring_config.get('process_node', 'T28')
+    try:
+        process_node = _normalize_process_node(raw_process_node)
+    except ValueError:
+        # If normalization fails, use original value and let validation continue
+        process_node = raw_process_node
+    # Support both width/height (28nm format) and top_count/bottom_count/left_count/right_count (180nm format)
+    has_width_height = 'width' in ring_config and 'height' in ring_config
+    has_count_fields = all(key in ring_config for key in ['top_count', 'bottom_count', 'left_count', 'right_count'])
+    
+    if not has_width_height and not has_count_fields:
+        print("❌ Error: ring_config missing width/height or top_count/bottom_count/left_count/right_count fields")
         return False
     
-    width = ring_config['width']
-    height = ring_config['height']
+    # If using count fields, derive width and height for validation
+    if has_count_fields and not has_width_height:
+        width = max(ring_config.get('top_count', 0), ring_config.get('bottom_count', 0))
+        height = max(ring_config.get('left_count', 0), ring_config.get('right_count', 0))
+        ring_config['width'] = width
+        ring_config['height'] = height
+    else:
+        width = ring_config['width']
+        height = ring_config['height']
     if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
         print("❌ Error: width and height must be positive integers")
         return False
@@ -63,8 +84,10 @@ def validate_config(config: Dict[str, Any]) -> bool:
             print(f"❌ Error: instance[{i}] missing name field")
             return False
         
-        if 'device' not in instance:
-            print(f"❌ Error: instance[{i}] missing device field")
+        # Support both "device" and "device_type" for backward compatibility
+        device = instance.get("device") or instance.get("device_type", "")
+        if not device:
+            print(f"❌ Error: instance[{i}] missing device or device_type field")
             return False
         
         if 'position' not in instance:
@@ -72,11 +95,19 @@ def validate_config(config: Dict[str, Any]) -> bool:
             return False
         
         name = instance['name']
-        device = instance['device']
+        # Support both "device" and "device_type" for backward compatibility
+        device = instance.get("device") or instance.get("device_type", "")
         position = instance['position']
         
-        # Validate device suffix rules
-        if not validate_device_suffix(device, position):
+        # Validate corner device name: check for duplicate _G suffix (before other validations)
+        if position.startswith(('top_left', 'top_right', 'bottom_left', 'bottom_right')):
+            # This is a corner position, validate device name
+            if device.endswith("_G_G"):
+                print(f"❌ Error: instance[{i}] {name}'s corner device has duplicate _G suffix: '{device}'. Should be '{device[:-2]}' (only one _G suffix allowed)")
+                return False
+        
+        # Validate device suffix rules (only for 28nm, 180nm doesn't need suffix)
+        if not validate_device_suffix(device, position, process_node):
             print(f"❌ Error: instance[{i}] {name}'s device suffix doesn't match position")
             return False
         
@@ -108,6 +139,11 @@ def validate_config(config: Dict[str, Any]) -> bool:
             if instance_type == 'corner':
                 if not position.startswith(('top_left', 'top_right', 'bottom_left', 'bottom_right')):
                     print(f"❌ Error: instance[{i}] {name}'s corner type position format is incorrect")
+                    return False
+                
+                # Validate corner device name: check for duplicate _G suffix
+                if device.endswith("_G_G"):
+                    print(f"❌ Error: instance[{i}] {name}'s corner device has duplicate _G suffix: '{device}'. Should be '{device[:-2]}' (only one _G suffix allowed)")
                     return False
         
         # Validate direction field (required for digital IO)
@@ -193,13 +229,23 @@ def validate_config(config: Dict[str, Any]) -> bool:
     print("✅ Configuration validation passed")
     return True
 
-def validate_device_suffix(device: str, position: str) -> bool:
-    """Validate device suffix compatibility with position"""
+def validate_device_suffix(device: str, position: str, process_node: str = "T28") -> bool:
+    """Validate device suffix compatibility with position
+    
+    IMPORTANT:
+    - T28: Devices must have suffix (_H_G or _V_G) matching position
+    - T180: Devices are complete without suffix, no suffix validation needed
+    """
     # Corner validation: only need to judge if position is a legal corner position
     if position.startswith(('top_left', 'top_right', 'bottom_left', 'bottom_right')):
         # Corner doesn't need to judge device suffix, only need position to be legal
         return True
     
+    # T180 process node: devices are complete without suffix, skip suffix validation
+    if process_node == "T180":
+        return True
+    
+    # 28nm process node: validate suffix rules
     # Left and right side pads must use _H_G suffix
     if position.startswith(('left_', 'right_')):
         if not device.endswith('_H_G'):
@@ -246,7 +292,11 @@ def validate_position_format(position: str, width: int, height: int) -> bool:
     return False
 
 def convert_config_to_list(config: Dict[str, Any]) -> list:
-    """Convert intent graph to list format required by generator"""
+    """Convert intent graph to list format required by generator
+    
+    Supports both 28nm format (device, pin_connection) and 180nm format (device_type, pin_config)
+    Normalizes field names to standard format
+    """
     config_list = []
     
     # Add ring_config
@@ -259,6 +309,16 @@ def convert_config_to_list(config: Dict[str, Any]) -> list:
     if 'instances' in config:
         for instance in config['instances']:
             instance_config = instance.copy()
+            
+            # Normalize field names: support both device/device_type and pin_connection/pin_config
+            # Convert device_type to device (for backward compatibility with old 180nm format)
+            if 'device_type' in instance_config and 'device' not in instance_config:
+                instance_config['device'] = instance_config.pop('device_type')
+            
+            # Convert pin_config to pin_connection (for backward compatibility with old 180nm format)
+            if 'pin_config' in instance_config and 'pin_connection' not in instance_config:
+                instance_config['pin_connection'] = instance_config.pop('pin_config')
+            
             # Keep original type field, don't override
             if 'type' not in instance_config:
                 instance_config['type'] = 'instance'
