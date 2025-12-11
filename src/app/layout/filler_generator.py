@@ -60,22 +60,17 @@ class FillerGenerator:
         """Determine filler type for corner and pad.
         
         Logic:
-        1. If corner's two adjacent pads belong to different voltage domains, use separator (PRCUTA_G)
-        2. If corner and pad belong to different voltage domains, use separator
-        3. Otherwise, use appropriate filler based on voltage domain type
+        - Only consider the voltage domains of the two adjacent pads around the corner
+        - Do NOT check the corner's voltage domain
+        1. If the two adjacent pads belong to different voltage domains, use separator (PRCUTA_G)
+        2. If the two adjacent pads belong to the same voltage domain, use appropriate filler based on that domain
         """
         
         filler_devices = FillerGenerator._get_filler_devices(process_node)
         separator = filler_devices.get("separator", "PRCUTA_G")
         
-        # Create corner component to check its voltage domain
-        corner_component = FillerGenerator.create_corner_component(corner_type)
-        
-        # If only one pad parameter (backward compatibility), check corner and pad
+        # If only one pad parameter (backward compatibility), use that pad's domain
         if pad2 is None:
-            # Check if corner and pad belong to different voltage domains
-            if not VoltageDomainHandler.is_same_voltage_domain(corner_component, pad1):
-                return separator
             # Use appropriate filler based on pad's voltage domain
             pad_domain = VoltageDomainHandler.get_voltage_domain(pad1)
             if pad_domain == "digital":
@@ -90,41 +85,18 @@ class FillerGenerator:
         domain2 = VoltageDomainHandler.get_voltage_domain(pad2)
         
         # If two pads belong to different voltage domains, use separator
-        # This handles the case where corner's two adjacent pads are in different voltage domains
-        # In this case, corner cannot belong to both voltage domains, so separator is needed
         if domain1 != domain2:
             return separator
         
-        # Check if the two pads belong to the same voltage domain
+        # Check if the two pads belong to the same specific voltage domain
         pads_same_domain = VoltageDomainHandler.is_same_voltage_domain(pad1, pad2)
         
         if not pads_same_domain:
-            # If pads don't belong to the same voltage domain (shouldn't happen here due to check above),
-            # but if it does, use separator
+            # If pads don't belong to the same specific voltage domain, use separator
             return separator
         
-        # If two pads belong to the same voltage domain, check if corner is compatible
-        # Special handling: if both pads are analog and belong to the same specific analog voltage domain,
-        # and corner is a generic analog corner (PCORNERA_G), they should be considered compatible
-        if domain1 == "analog" and corner_type == "PCORNERA_G":
-            # Get voltage domain keys
-            corner_key = VoltageDomainHandler.get_voltage_domain_key(corner_component)
-            pad_key = VoltageDomainHandler.get_voltage_domain_key(pad1)
-            
-            # If corner is generic analog (VDD_ANALOG_VSS_ANALOG) and pad is specific analog (ANALOG_*),
-            # and both pads are in the same voltage domain, they are compatible
-            # The corner can be considered as belonging to the same voltage domain as the pads
-            if corner_key == "VDD_ANALOG_VSS_ANALOG" and pad_key.startswith("ANALOG_"):
-                # Pads are in the same voltage domain, so corner is compatible - use appropriate filler
-                pass  # Continue to use appropriate filler below
-            elif not VoltageDomainHandler.is_same_voltage_domain(corner_component, pad1):
-                # Corner and pad are in different voltage domains, use separator
-                return separator
-        elif not VoltageDomainHandler.is_same_voltage_domain(corner_component, pad1):
-            # For other cases, if corner and pad belong to different voltage domains, use separator
-            return separator
-        
-        # If corner and pads all belong to the same voltage domain, choose filler based on voltage domain type
+        # If two pads belong to the same voltage domain, choose filler based on voltage domain type
+        # Do NOT check corner's voltage domain - only use pad domains
         if domain1 == "digital":
             return filler_devices.get("digital_20", "PFILLER20_G")
         elif domain1 == "analog":

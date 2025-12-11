@@ -250,6 +250,12 @@ LOG_LEVEL=INFO
 USER_PROFILE_PATH=user_data/default_user_profile.md
 # Set to empty or 'none' to disable user profile loading
 # USER_PROFILE_PATH=
+
+# IO image vision
+# Only required if enabling IO image vision feature, not mandatory
+IMAGE_API_BASE=https://openrouter.ai/api/v1
+IMAGE_API_KEY=your_image_api_key_here
+IMAGE_MODEL=openai/gpt-4o
 "@
 
 Set-Content -Path $envFile -Value $envContent -Encoding UTF8

@@ -1,10 +1,10 @@
-# 28nm Technology Configuration - Process-specific parameters (DRC: ≥0.05µm, Metals: M1-M7, Via pitch: 0.13µm)
+# T28 Technology Configuration - Process-specific parameters (DRC: ≥0.05µm, Metals: M1-M7, Via pitch: 0.13µm)
 
-This document defines the 28nm process-specific parameters and constraints for capacitor design.
+This document defines the T28 process-specific parameters and constraints for capacitor design.
 
 ## Overview
 
-This configuration applies to all capacitor designs targeting the 28nm technology node. Refer to the shape-specific structure documents under `03_Shape_Specifics/` for geometric definitions, and the generic workflow documents (e.g., `01_Workflow_Framework.md`) for execution procedures.
+This configuration applies to all capacitor designs targeting the T28 technology node. Refer to the shape-specific structure documents under `03_Shape_Specifics/` for geometric definitions, and the generic workflow documents (e.g., `01_Workflow_Framework.md`) for execution procedures.
 
 ---
 
@@ -116,7 +116,7 @@ Initial parameters are synthesized in Phase 1 from structure rules and these tec
 
 ## Constraint Validation
 
-When validating parameters for 28nm technology, ensure:
+When validating parameters for T28 technology, ensure:
 - [ ] Internal spacings (finger_d) ≥ 0.05 µm
 - [ ] Frame-to-finger spacing (`frame_to_finger_d`) ≥ 0.08 µm
 - [ ] Critical spacings ≥ 0.1 µm:
@@ -152,5 +152,5 @@ When validating parameters for 28nm technology, ensure:
   - Shape-specific structure documents in `03_Shape_Specifics/` for geometric calculations
   - Workflow documents (e.g., `01_Workflow_Framework.md`) for validation checks
   - Python modules for constraint enforcement
-- When designing for 28nm, always reference this document for process-specific values and rules.
+- When designing for T28, always reference this document for process-specific values and rules.
 

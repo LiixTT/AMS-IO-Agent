@@ -159,6 +159,12 @@ echo # Path to user profile markdown file ^(relative to project root^)
 echo USER_PROFILE_PATH=user_data/default_user_profile.md
 echo # Set to empty or 'none' to disable user profile loading
 echo # USER_PROFILE_PATH=
+echo.
+echo # IO image vision
+echo # Only required if enabling IO image vision feature, not mandatory
+echo IMAGE_API_BASE=https://openrouter.ai/api/v1
+echo IMAGE_API_KEY=your_image_api_key_here
+echo IMAGE_MODEL=openai/gpt-4o
 ) > .env
 
 echo [SUCCESS] .env configuration file generated

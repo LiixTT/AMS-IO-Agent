@@ -1,10 +1,10 @@
-# 180nm Technology Configuration - Process-specific parameters (DRC: ≥0.28µm, Metals: METAL1-METAL5, Via pitch: 0.52µm)
+# T180 Technology Configuration - Process-specific parameters (DRC: ≥0.28µm, Metals: METAL1-METAL5, Via pitch: 0.52µm)
 
-This document defines the 180nm process-specific parameters and constraints for capacitor design.
+This document defines the T180 process-specific parameters and constraints for capacitor design.
 
 ## Overview
 
-This configuration applies to all capacitor designs targeting the 180nm technology node. Refer to the shape-specific structure documents under `03_Shape_Specifics/` for geometric definitions, and the generic workflow documents (e.g., `01_Workflow_Framework.md`) for execution procedures.
+This configuration applies to all capacitor designs targeting the T180 technology node. Refer to the shape-specific structure documents under `03_Shape_Specifics/` for geometric definitions, and the generic workflow documents (e.g., `01_Workflow_Framework.md`) for execution procedures.
 
 ---
 
@@ -79,7 +79,7 @@ Initial parameters are synthesized in Phase 1 from structure rules and these tec
 
 ## Constraint Validation
 
-When validating parameters for 180nm technology, ensure:
+When validating parameters for T180 technology, ensure:
 - [ ] All spacings ≥ 0.28 µm
 - [ ] All widths ≥ 0.28 µm
 - [ ] Horizontal widths follow quantization: 0.38 + 0.52×n
@@ -96,5 +96,5 @@ When validating parameters for 180nm technology, ensure:
   - Shape-specific structure documents in `03_Shape_Specifics/` for geometric calculations
   - Workflow documents (e.g., `01_Workflow_Framework.md`) for validation checks
   - Python modules for constraint enforcement
-- When designing for 180nm, always reference this document for process-specific values and rules.
+- When designing for T180, always reference this document for process-specific values and rules.
 

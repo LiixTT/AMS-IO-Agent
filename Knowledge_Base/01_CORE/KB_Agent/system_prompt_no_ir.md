@@ -283,7 +283,7 @@ After loading each knowledge module, create and maintain a lightweight index tha
 ### Knowledge Loading Rules (Top-Level Policy)
 
 - Always load the knowledge base index first for the selected knowledge base
-- **IO_RING task exception**: For IO_RING generation tasks, do NOT load technology library knowledge (e.g., Tech_28nm_28nm_Technology) - IO_RING tasks only need IO_Ring_Core_structured knowledge module
+- **IO_RING task exception**: For IO_RING generation tasks, do NOT load technology library knowledge (e.g., Tech_T28_T28_Technology) - IO_RING tasks only need IO_Ring_Core_structured knowledge module
 - **Phased loading strategy**: Use incremental, phase-based loading to avoid knowledge overload and reduce generation errors:
   - **Planning phase**: When analyzing user input, identify all knowledge modules needed for the complete workflow (all phases)
     - This includes modules for Phase 1, Phase 2, and Phase 3 if the user requests a complete workflow

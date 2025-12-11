@@ -63,7 +63,7 @@ For all DRC/PEX operations:
   - Phase 3: `C_CDAC_{capacitance}` (e.g., `C_CDAC_6fF`)
 
 **Only ask for (if completely missing):**
-- Technology node (e.g., "28nm", "40nm")
+- Technology node (e.g., "T28", "40nm")
 - Target capacitance value (e.g., "6 fF")
 - Shape type (if ambiguous and cannot be inferred from context)
 

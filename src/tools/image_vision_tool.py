@@ -10,7 +10,7 @@ import mimetypes
 from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 from smolagents import tool
-from .tool_utils import format_tool_logs, dual_stream_tool
+from .tool_utils import format_tool_logs
 
 
 # Load .env from repository root if present so tests/README env vars are available.
@@ -195,7 +195,7 @@ def _extract_simplified_json(resp_json: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-@dual_stream_tool
+@tool
 def analyze_image_path(
     image_path: str,
 ) -> Dict[str, Any]:
@@ -379,8 +379,7 @@ def analyze_image_path(
                 exec_payload = f"Simplified configuration extracted successfully. Saved to: {saved_path}"
             else:
                 exec_payload = f"Image analysis completed. Response saved."
-            # Return tuple for dual_stream_tool: (execution_log, full_log, extra_fields)
-            return exec_payload, resp_json, extra_fields
+            return format_tool_logs(exec_payload, resp_json, extra_fields)
 
         resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=60)
         try:
@@ -432,14 +431,13 @@ def analyze_image_path(
             exec_payload = f"Simplified configuration extracted successfully. Saved to: {saved_path}"
         else:
             exec_payload = resp_json
-        # Return tuple for dual_stream_tool: (execution_log, full_log, extra_fields)
-        return exec_payload, resp_json, extra_fields
+        return format_tool_logs(exec_payload, resp_json, extra_fields)
 
     except Exception as e:
         return format_tool_logs({"status": "error", "error": "exception", "message": str(e)})
 
 
-@dual_stream_tool
+@tool
 def analyze_image_b64(
     image_b64: str,
     mime_type: Optional[str] = None,
@@ -624,8 +622,7 @@ def analyze_image_b64(
                 exec_payload = f"Simplified configuration extracted successfully. Saved to: {saved_path}"
             else:
                 exec_payload = f"Image analysis completed. Response saved."
-            # Return tuple for dual_stream_tool: (execution_log, full_log, extra_fields)
-            return exec_payload, resp_json, extra_fields
+            return format_tool_logs(exec_payload, resp_json, extra_fields)
 
         resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=60)
         try:
@@ -689,8 +686,7 @@ def analyze_image_b64(
         else:
             exec_payload = resp_json
             
-        # Return tuple for dual_stream_tool: (execution_log, full_log, extra_fields)
-        return exec_payload, resp_json, extra_fields
+        return format_tool_logs(exec_payload, resp_json, extra_fields)
 
     except Exception as e:
         return format_tool_logs({"status": "error", "error": "exception", "message": str(e)})

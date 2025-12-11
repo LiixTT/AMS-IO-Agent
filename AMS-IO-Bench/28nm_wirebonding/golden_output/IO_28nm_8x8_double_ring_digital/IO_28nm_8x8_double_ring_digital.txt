@@ -9,7 +9,11 @@ Task: Generate IO ring schematic and layout design for Cadence Virtuoso.
   ======================================================================
   SIGNAL CONFIGURATION
   ======================================================================
-  Signal names: D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23 D24 D25 D26 D27 VIOL GIOL VIOH GIOH. Additionally, please insert an inner ring pad D28 between D26 and D27, insert an inner ring pad D29 between D27 and VIOL
+  Signal names: D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23 D24 D25 D26 D27 VIOL GIOL VIOH GIOH
+
+  Additionally, please insert inner ring pads:
+  - insert an inner ring pad D28 between D26 and D27
+  - insert an inner ring pad D29 between D27 and VIOL
 
 
 

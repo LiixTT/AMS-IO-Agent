@@ -89,6 +89,12 @@ create_env_file:
     echo "USER_PROFILE_PATH=user_data/default_user_profile.md" >> .env
     echo "# Set to empty or 'none' to disable user profile loading" >> .env
     echo "# USER_PROFILE_PATH=" >> .env
+    echo "" >> .env
+    echo "# IO image vision" >> .env
+    echo "# Only required if enabling IO image vision feature, not mandatory" >> .env
+    echo "IMAGE_API_BASE=https://openrouter.ai/api/v1" >> .env
+    echo "IMAGE_API_KEY=your_image_api_key_here" >> .env
+    echo "IMAGE_MODEL=openai/gpt-4o" >> .env
     
     # Display configuration summary
     echo ""

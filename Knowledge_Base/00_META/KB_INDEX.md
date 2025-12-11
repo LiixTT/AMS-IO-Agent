@@ -10,7 +10,7 @@ Comprehensive index of all knowledge files with detailed summaries.
 
 **KB_INDEX.md**
 - Master index for the CDAC knowledge base defining loading strategies and module dependencies
-- Provides combinations of modules needed for different shapes (H-shape, I-type, Sandwich) and technologies (28nm, 180nm)
+- Provides combinations of modules needed for different shapes (H-shape, I-type, Sandwich) and technologies (T28, T180)
 - Lazy loading policy: load universal modules (00, 01, 02) first, then load phase-specific and shape-specific modules only when needed
 
 **README.md**
@@ -104,7 +104,7 @@ Comprehensive index of all knowledge files with detailed summaries.
 ### Technology Configurations (Technology_Configs/)
 
 **INDEX.md**
-- Index of available technology node configurations (28nm, 180nm)
+- Index of available technology node configurations (T28, T180)
 - Explains purpose of technology configs: provide process-specific DRC rules, via parameters, metal layer restrictions
 - Guides users on which technology config to load based on target fabrication process
 
@@ -113,14 +113,14 @@ Comprehensive index of all knowledge files with detailed summaries.
 - Ensures shape-specific modules are decoupled from technology details by standardizing required parameters
 - Specifies mandatory fields: DRC rules (min spacing, width, area), via parameters (pitch, margin), metal layer lists
 
-**28nm_Technology.md**
-- 28nm process parameters: minimum spacing ≥0.05 µm, frame-to-finger spacing ≥0.08 µm, critical spacing ≥0.1 µm
+**T28_Technology.md**
+- T28 process parameters: minimum spacing ≥0.05 µm, frame-to-finger spacing ≥0.08 µm, critical spacing ≥0.1 µm
 - Via parameters: pitch_cut ≈0.13 µm, via margin ≈0.02 µm, width quantization formula (0.11 + 0.13×n)
 - Metal layers M1-M7 available, finger_vertical_width default 0.05 µm, minimum area rules (≥0.017 µm²)
 
-**180nm_Technology.md**
-- 180nm process parameters: more relaxed DRC rules compared to 28nm due to larger feature sizes
-- Via parameters and metal layer specifications for 180nm fabrication process
+**T180_Technology.md**
+- T180 process parameters: more relaxed DRC rules compared to T28 due to larger feature sizes
+- Via parameters and metal layer specifications for T180 fabrication process
 - Technology-specific constraints for capacitor design including minimum dimensions and layer restrictions
 
 ---
@@ -197,11 +197,11 @@ Comprehensive index of all knowledge files with detailed summaries.
 2. Generate intent graph based on requirements
 3. Use IO ring tools (validate, generate schematic/layout, run verification)
 
-### For CDAC/Capacitor Design (Example: H-Shape on 28nm)
+### For CDAC/Capacitor Design (Example: H-Shape on T28)
 1. Load `KB_CDAC/KB_INDEX.md` to understand structure
 2. Load universal modules: `00_Core_Principles.md`, `01_Workflow_Framework.md`, `02_Python_SKILL_Integration.md`
 3. Load shape module: `03_Shape_Specifics/H_Shape/03_01_H_Shape_Structure.md`
-4. Load technology: `Technology_Configs/28nm_Technology.md`
+4. Load technology: `Technology_Configs/T28_Technology.md`
 5. For Phase 2: Load `03_Shape_Specifics/H_Shape/03_02_H_Shape_Dummy_Generation.md`
 6. For Phase 3: Load `04_Array_Generation.md`
 
