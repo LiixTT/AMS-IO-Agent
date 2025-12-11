@@ -16,19 +16,19 @@ Every technology configuration file must define the following parameters:
 - **Type**: Number (≥ 0)
 - **Description**: Minimum spacing between any two metal features
 - **Used by**: Shape modules for spacing validation (finger_d, frame_to_finger_d, spacing)
-- **Example**: 0.28 (180nm), 0.05 (28nm)
+- **Example**: 0.28 (T180), 0.05 (T28)
 
 #### `min_width` (µm)
 - **Type**: Number (≥ 0)
 - **Description**: Minimum width for any metal feature
 - **Used by**: Shape modules for width validation (finger_vertical_width, frame_vertical_width, etc.)
-- **Example**: 0.28 (180nm), 0.05 (28nm)
+- **Example**: 0.28 (T180), 0.05 (T28)
 
 #### `min_area` (µm²) - Optional
 - **Type**: Number (≥ 0) or null
 - **Description**: Minimum polygon area requirement (if applicable)
 - **Used by**: Shape modules for area validation
-- **Example**: 0.017 (28nm), null (180nm if not applicable)
+- **Example**: 0.017 (T28), null (T180 if not applicable)
 
 ### 2. Via Parameters
 
@@ -37,14 +37,14 @@ Every technology configuration file must define the following parameters:
 - **Description**: Pitch between via cuts (center-to-center distance)
 - **Used by**: Shape modules for via array sizing calculations
 - **Formula**: `cut_columns = max(1, floor((width + via_margin) / via_pitch))`
-- **Example**: 0.52 (180nm), 0.13 (28nm)
+- **Example**: 0.52 (T180), 0.13 (T28)
 
 #### `via_margin` (µm)
 - **Type**: Number (≥ 0)
 - **Description**: Margin added to metal widths for via array sizing
 - **Used by**: Shape modules for via row/column count calculations
 - **Formula**: `cut_rows = max(1, floor((metal_width + via_margin) / via_pitch))`
-- **Example**: 0.14 (180nm), 0.02 (28nm)
+- **Example**: 0.14 (T180), 0.02 (T28)
 
 ### 3. Width Quantization
 
@@ -53,14 +53,14 @@ Every technology configuration file must define the following parameters:
 - **Description**: Base value for horizontal width quantization formula
 - **Formula**: Width = `width_quantization_base + width_quantization_step × n` (where n ∈ N)
 - **Used by**: Shape modules for quantized horizontal widths (frame_horizontal_width, middle_horizontal_width)
-- **Example**: 0.38 (180nm), 0.11 (28nm)
+- **Example**: 0.38 (T180), 0.11 (T28)
 
 #### `width_quantization_step` (µm)
 - **Type**: Number (> 0)
 - **Description**: Step size for width quantization formula
 - **Formula**: Width = `width_quantization_base + width_quantization_step × n` (where n ∈ N)
 - **Used by**: Shape modules for quantized horizontal widths
-- **Example**: 0.52 (180nm), 0.13 (28nm)
+- **Example**: 0.52 (T180), 0.13 (T28)
 
 ### 4. Metal Layer Configuration
 
@@ -69,8 +69,8 @@ Every technology configuration file must define the following parameters:
 - **Description**: List of allowed metal layer names (in order from lowest to highest)
 - **Used by**: Shape modules for layer validation and via naming
 - **Naming convention**: Must be consistent within a technology (either "METAL" or "M" prefix)
-- **Example 180nm**: `["METAL1", "METAL2", "METAL3", "METAL4", "METAL5"]`
-- **Example 28nm**: `["M1", "M2", "M3", "M4", "M5", "M6", "M7"]`
+- **Example T180**: `["METAL1", "METAL2", "METAL3", "METAL4", "METAL5"]`
+- **Example T28**: `["M1", "M2", "M3", "M4", "M5", "M6", "M7"]`
 
 #### `metal_naming_style` (string)
 - **Type**: "METAL" or "M"
@@ -79,14 +79,14 @@ Every technology configuration file must define the following parameters:
 - **Rules**:
   - If style is "METAL": Use `METAL5_METAL4` format for via names
   - If style is "M": Use `M7_M6` format for via names
-- **Example**: "METAL" (180nm), "M" (28nm)
+- **Example**: "METAL" (T180), "M" (T28)
 
 #### `low_parasitic_forbidden_metals` (list) - Optional
 - **Type**: List of strings
 - **Description**: Metal layers forbidden in low-parasitic mode (typically includes M1)
 - **Used by**: Shape modules for low-parasitic constraint validation
-- **Example 28nm**: `["M1"]`
-- **Example 180nm**: `["METAL1"]` (if applicable)
+- **Example T28**: `["M1"]`
+- **Example T180**: `["METAL1"]` (if applicable)
 
 ---
 
@@ -241,7 +241,7 @@ When creating a new technology configuration, use this structure:
 ### Don't hardcode technology values in shape modules
 ```markdown
 # BAD
-cut_columns = max(1, floor((width + 0.14) / 0.52))  # 180nm-specific!
+cut_columns = max(1, floor((width + 0.14) / 0.52))  # T180-specific!
 
 # GOOD
 cut_columns = max(1, floor((width + via_margin) / via_pitch))  # Uses tech config

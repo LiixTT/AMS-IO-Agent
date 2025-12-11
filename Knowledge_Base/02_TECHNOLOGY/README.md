@@ -4,8 +4,8 @@ Technology node specific parameters and design rules.
 
 ## Directories
 
-- **28nm/** - 28nm process parameters
-- **180nm/** - 180nm process parameters
+- **T28/** - T28 process parameters
+- **T180/** - T180 process parameters
 
 ## Files
 

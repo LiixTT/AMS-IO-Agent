@@ -4,18 +4,18 @@ This directory contains process-specific technology configuration files for diff
 
 ## Available Technologies
 
-### 180nm Technology
-- **File**: `180nm_Technology.md`
-- **Domain name**: `Technology_Configs_180nm_Technology`
+### T180 Technology
+- **File**: `T180_Technology.md`
+- **Domain name**: `Technology_Configs_T180_Technology`
 - **Key parameters**:
   - DRC minima: ≥0.28µm
   - Metals: METAL1-METAL5
   - Via pitch: 0.52µm
   - Width quantization: 0.38 + 0.52×n
 
-### 28nm Technology
-- **File**: `28nm_Technology.md`
-- **Domain name**: `Technology_Configs_28nm_Technology`
+### T28 Technology
+- **File**: `T28_Technology.md`
+- **Domain name**: `Technology_Configs_T28_Technology`
 - **Key parameters**:
   - DRC minima: ≥0.05µm
   - Metals: M1-M7

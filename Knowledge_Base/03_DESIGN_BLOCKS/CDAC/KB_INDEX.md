@@ -56,8 +56,8 @@ KB_Capacitor/
 │
 └── ⚙️  Technology Configurations (Technology_Configs/)
     ├── README.md
-    ├── 180nm_Technology.md              ┐
-    └── 28nm_Technology.md               ┴─ Process-specific parameters
+    ├── T180_Technology.md              ┐
+    └── T28_Technology.md               ┴─ Process-specific parameters
 
 ```
 
@@ -107,14 +107,14 @@ KB_Capacitor/
 
 ### Module Combination Example
 
-To design an **H-shape capacitor on 180nm**, combine:
+To design an **H-shape capacitor on T180**, combine:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Universal (00-02, 04)  │  Shape (03)  │  Tech Config        │
 ├──────────────────────────┼──────────────┼─────────────────────┤
 │ 00_Core_Principles       │              │                     │
-│ 01_Workflow_Framework    │ 03_Shape_    │ Technology_180nm_   │
+│ 01_Workflow_Framework    │ 03_Shape_    │ Technology_T180_   │
 │ 02_Python_SKILL_Integration│ H_Shape/   │ Technology          │
 │ 04_Array_Generation      │ 03_01_H_     │                     │
 │                          │ Shape_       │                     │
@@ -136,7 +136,7 @@ This knowledge base is organized into four main categories:
 
 To design a capacitor, combine modules based on your needs:
 
-### For H-shape CDAC on 180nm:
+### For H-shape CDAC on T180:
 ```
 00_Core_Principles.md
 01_Workflow_Framework.md  
@@ -144,11 +144,11 @@ To design a capacitor, combine modules based on your needs:
 03_Shape_Specifics/H_Shape/03_01_H_Shape_Structure.md
 03_Shape_Specifics/H_Shape/03_02_H_Shape_Dummy_Generation.md
 04_Array_Generation.md
-Technology_Configs/180nm_Technology.md
+Technology_Configs/T180_Technology.md
  
 ```
 
-### For I-Type CDAC on 180nm:
+### For I-Type CDAC on T180:
 ```
 00_Core_Principles.md
 01_Workflow_Framework.md  
@@ -156,11 +156,11 @@ Technology_Configs/180nm_Technology.md
 03_Shape_Specifics/I_Type/03_01_I_Type_Structure.md
 03_Shape_Specifics/I_Type/03_02_I_Type_Dummy_Generation.md
 04_Array_Generation.md
-Technology_Configs/180nm_Technology.md
+Technology_Configs/T180_Technology.md
  
 ```
 
-### For H-shape CDAC on 28nm:
+### For H-shape CDAC on T28:
 ```
 00_Core_Principles.md
 01_Workflow_Framework.md
@@ -168,11 +168,11 @@ Technology_Configs/180nm_Technology.md
 03_Shape_Specifics/H_Shape/03_01_H_Shape_Structure.md
 03_Shape_Specifics/H_Shape/03_02_H_Shape_Dummy_Generation.md
 04_Array_Generation.md
-Technology_Configs/28nm_Technology.md
+Technology_Configs/T28_Technology.md
  
 ```
 
-### For I-Type CDAC on 28nm:
+### For I-Type CDAC on T28:
 ```
 00_Core_Principles.md
 01_Workflow_Framework.md
@@ -180,7 +180,7 @@ Technology_Configs/28nm_Technology.md
 03_Shape_Specifics/I_Type/03_01_I_Type_Structure.md
 03_Shape_Specifics/I_Type/03_02_I_Type_Dummy_Generation.md
 04_Array_Generation.md
-Technology_Configs/28nm_Technology.md
+Technology_Configs/T28_Technology.md
  
 ```
 
@@ -242,8 +242,8 @@ Future shapes (when available):
 Process-specific parameters for different technology nodes. See `Technology_Configs/INDEX.md` for details.
 
 Available technologies:
-- `180nm_Technology.md` - 180nm process parameters
-- `28nm_Technology.md` - 28nm process parameters
+- `T180_Technology.md` - T180 process parameters
+- `T28_Technology.md` - T28 process parameters
 
 ### Initial Parameters
 Phase 1 cold-starts by synthesizing initial parameters from structure rules and technology constraints.

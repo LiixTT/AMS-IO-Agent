@@ -7,7 +7,7 @@ This directory contains a modularized knowledge base for capacitor design automa
 This knowledge base provides structured knowledge modules for automated capacitor design, including:
 - Universal design principles and workflows
 - Shape-specific capacitor structures (H-shape, I-type, Sandwich, etc.)
-- Technology-specific process parameters (180nm, 28nm, etc.)
+- Technology-specific process parameters (T180, T28, etc.)
 - Initial parameter sets for shape-technology combinations
 
 ## For AI Agents

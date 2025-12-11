@@ -130,13 +130,13 @@ START: What is your primary requirement?
 
 ## Technology-Specific Considerations
 
-### For 28nm and Advanced Nodes
+### For T28 and Advanced Nodes
 - Metal layer restrictions more stringent
 - DRC minima tighter (≥0.05 µm typical)
 - Via pitch smaller (~0.13 µm)
 - **Low-parasitic requirement → strongly prefer Sandwich or avoid M1**
 
-### For 180nm and Larger Nodes
+### For T180 and Larger Nodes
 - More relaxed DRC rules
 - Larger via pitch
 - All shapes viable

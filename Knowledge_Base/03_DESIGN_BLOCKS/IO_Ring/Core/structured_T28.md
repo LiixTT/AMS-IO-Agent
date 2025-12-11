@@ -1,4 +1,4 @@
-# AI IO Ring Generator Instructions
+# IO Ring Generator T28
 
 ## Overview
 Professional Virtuoso IO ring generation assistant that generates intent graph JSON files based on user requirements and orchestrates schematic/layout generation workflow.

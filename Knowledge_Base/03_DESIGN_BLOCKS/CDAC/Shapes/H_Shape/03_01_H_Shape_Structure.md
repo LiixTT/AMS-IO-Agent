@@ -37,7 +37,7 @@ This document defines the **H-shape capacitor structure** used in all CDAC compo
 - **Location**: Same as middle row via and BOT pin: `(0, 0)`
 - **Size**: Same as middle row via: `cut_rows_mid × cut_columns` (same via array size)
 - **Layer scope**: **ALL adjacent metal layer pairs** from highest to lowest layer in the technology must be connected
-  - Example for 28nm (M1-M7): Create `M7_M6`, `M6_M5`, `M5_M4`, `M4_M3`, `M3_M2`, `M2_M1` all at `(0, 0)` with `cut_rows_mid × cut_columns`
+  - Example for T28 (M1-M7): Create `M7_M6`, `M6_M5`, `M5_M4`, `M4_M3`, `M3_M2`, `M2_M1` all at `(0, 0)` with `cut_rows_mid × cut_columns`
 - **Via naming**: Use `higher_lower` convention for each adjacent pair
 - **Purpose**: Ensures array routing can use **any metal layer** and will always have a connection path
 
@@ -250,7 +250,7 @@ After metals for all layers are drawn:
    - **Size**: **Same as middle row via**: `cut_rows_mid × cut_columns` (same via array size)
    - **Layer scope**: **CRITICAL** - Create via stack connecting **ALL adjacent metal layer pairs** from **highest to lowest layer available in the technology**
      - This includes **ALL technology metal layers**, not just the layers in `layerList`
-     - Example for 28nm (M1-M7): Create `M7_M6`, `M6_M5`, `M5_M4`, `M4_M3`, `M3_M2`, `M2_M1` all at `(0, 0)` with `cut_rows_mid × cut_columns`
+     - Example for T28 (M1-M7): Create `M7_M6`, `M6_M5`, `M5_M4`, `M4_M3`, `M3_M2`, `M2_M1` all at `(0, 0)` with `cut_rows_mid × cut_columns`
    - **Via naming**: Use `higher_lower` convention for each adjacent pair
    - **Purpose**: Ensures array routing can use **any metal layer** and will always have a connection path
    - **Key point**: Same position and size as middle row via, but connects **all technology layers** for universal connectivity
