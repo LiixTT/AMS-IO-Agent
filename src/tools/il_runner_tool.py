@@ -19,42 +19,32 @@ from .bridge_utils import (
 )
 
 @tool
-def run_il_file(il_file_path: str, lib: Optional[str] = None, cell: Optional[str] = None, view: str = "layout") -> str:
+def run_il_file(il_file_path: str, lib: str, cell: str, view: str = "layout") -> str:
     """
     Run il file using skillbridge library
     
     Args:
         il_file_path: Path to il file (can be relative or absolute path)
-        lib: target library name (optional)
-        cell: target cell name (optional)
+        lib: target library name (required)
+        cell: target cell name (required)
         view: target view name (default: "layout")
         
     Returns:
         String description of the run result
     """
     try:
-        # If lib/cell provided, open specified cellView and set as current edit view
-        if lib and cell:
-            ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
-            if not ok:
-                return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
-            # Open window to display the cellView
-            window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
-            if not window_ok:
-                return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
-            ui_redraw(timeout=10)
-            sleep(0.5)
-        else:
-            # If lib/cell not provided, try to get current cellView and set cv variable
-            # This is needed because IL files often use 'cv' variable
-            try:
-                cv_result = rb_exec('geGetEditCellView()', timeout=10)
-                if not cv_result or cv_result.strip().lower() in {'nil', 'none', ''}:
-                    return f"❌ Error: No cellView is currently open. Please specify --lib and --cell options, or open a cellView in Virtuoso first."
-                # Set cv variable for IL file to use
-                rb_exec('cv = geGetEditCellView()', timeout=10)
-            except Exception as e:
-                return f"❌ Error: Failed to get current cellView: {e}. Please specify --lib and --cell options."
+        # Open specified cellView and set as current edit view
+        ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
+        if not ok:
+            return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
+        # Open window to display the cellView
+        window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
+        if not window_ok:
+            return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
+        ui_redraw(timeout=10)
+        sleep(0.5)
+        # Set cv variable for IL file to use
+        rb_exec('cv = geGetEditCellView()', timeout=10)
         # Check if file exists
         skill_path = Path(il_file_path)
         
@@ -92,31 +82,32 @@ def run_il_file(il_file_path: str, lib: Optional[str] = None, cell: Optional[str
         return f"❌ Error occurred while running il file: {e}"
 
 @tool
-def run_il_file_with_save(il_file_path: str, lib: Optional[str] = None, cell: Optional[str] = None, view: str = "layout") -> str:
+def run_il_file_with_save(il_file_path: str, lib: str, cell: str, view: str = "layout") -> str:
     """
     Run il file and save the current cellview (for files that modify the design)
     
     Args:
         il_file_path: Path to il file (can be relative or absolute path)
-        lib: target library name (optional)
-        cell: target cell name (optional)
+        lib: target library name (required)
+        cell: target cell name (required)
         view: target view name (default: "layout")
         
     Returns:
         String description of the run result
     """
     try:
-        # If lib/cell provided, open specified cellView and set as current edit view
-        if lib and cell:
-            ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
-            if not ok:
-                return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
-            # Open window to display the cellView
-            window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
-            if not window_ok:
-                return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
-            ui_redraw(timeout=10)
-            sleep(0.5)
+        # Open specified cellView and set as current edit view
+        ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
+        if not ok:
+            return f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
+        # Open window to display the cellView
+        window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
+        if not window_ok:
+            return f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
+        ui_redraw(timeout=10)
+        sleep(0.5)
+        # Set cv variable for IL file to use
+        rb_exec('cv = geGetEditCellView()', timeout=10)
         # Check if file exists
         skill_path = Path(il_file_path)
         
@@ -211,15 +202,15 @@ def list_il_files(directory: str = "output") -> str:
         return f"❌ Error occurred while listing il files: {e}" 
 
 @tool
-def run_il_with_screenshot(il_file_path: str, screenshot_path: Optional[str] = None, lib: Optional[str] = None, cell: Optional[str] = None, view: str = "layout") -> str:
+def run_il_with_screenshot(il_file_path: str, lib: str, cell: str, screenshot_path: Optional[str] = None, view: str = "layout") -> str:
     """
     Run il file using skillbridge library and save screenshot
     
     Args:
         il_file_path: Path to il file (can be relative or absolute path)
+        lib: target library name (required)
+        cell: target cell name (required)
         screenshot_path: Optional absolute/relative path to save the screenshot. If None, will save to output/screenshots/virtuoso_<stem>_<timestamp>.png
-        lib: target library name (optional)
-        cell: target cell name (optional)
         view: target view name (default: "layout")
         
     Returns:
@@ -233,32 +224,20 @@ def run_il_with_screenshot(il_file_path: str, screenshot_path: Optional[str] = N
     }
     
     try:
-        # If lib/cell provided, open specified cellView and set as current edit view first
-        if lib and cell:
-            ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
-            if not ok:
-                result_dict["message"] = f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
-                return json.dumps(result_dict, ensure_ascii=False)
-            # Open window to display the cellView
-            window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
-            if not window_ok:
-                result_dict["message"] = f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
-                return json.dumps(result_dict, ensure_ascii=False)
-            ui_redraw(timeout=10)
-            sleep(0.5)
-        else:
-            # If lib/cell not provided, try to get current cellView and set cv variable
-            # This is needed because IL files often use 'cv' variable
-            try:
-                cv_result = rb_exec('geGetEditCellView()', timeout=10)
-                if not cv_result or cv_result.strip().lower() in {'nil', 'none', ''}:
-                    result_dict["message"] = f"❌ Error: No cellView is currently open. Please specify --lib and --cell options, or open a cellView in Virtuoso first."
-                    return json.dumps(result_dict, ensure_ascii=False)
-                # Set cv variable for IL file to use
-                rb_exec('cv = geGetEditCellView()', timeout=10)
-            except Exception as e:
-                result_dict["message"] = f"❌ Error: Failed to get current cellView: {e}. Please specify --lib and --cell options."
-                return json.dumps(result_dict, ensure_ascii=False)
+        # Open specified cellView and set as current edit view first
+        ok = open_cell_view_by_type(lib, cell, view=view, view_type=None, mode="w", timeout=30)
+        if not ok:
+            result_dict["message"] = f"❌ Error: Failed to open cellView {lib}/{cell}/{view}"
+            return json.dumps(result_dict, ensure_ascii=False)
+        # Open window to display the cellView
+        window_ok = ge_open_window(lib, cell, view=view, view_type=None, mode="a", timeout=30)
+        if not window_ok:
+            result_dict["message"] = f"❌ Error: Failed to open window for {lib}/{cell}/{view}"
+            return json.dumps(result_dict, ensure_ascii=False)
+        ui_redraw(timeout=10)
+        sleep(0.5)
+        # Set cv variable for IL file to use
+        rb_exec('cv = geGetEditCellView()', timeout=10)
 
         # Check if file exists
         skill_path = Path(il_file_path)
@@ -388,6 +367,14 @@ def screenshot_current_window(lib: Optional[str] = None, cell: Optional[str] = N
                 return json.dumps(result, ensure_ascii=False)
             ui_redraw(timeout=10)
             sleep(0.5)
+        
+        # Set cv variable for screenshot script to use
+        if use_ramic_bridge():
+            rb_exec('cv = geGetEditCellView()', timeout=10)
+        else:
+            from skillbridge import Workspace
+            ws = Workspace.open()
+            ws['geGetEditCellView']()
         
         # Redraw and zoom using unified helpers
         ui_redraw(timeout=10)

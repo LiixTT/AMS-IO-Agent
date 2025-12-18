@@ -10,7 +10,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 def load_system_prompt_with_profile() -> str:
     """Load system prompt and append user profile if exists"""
     # Load system prompt from the correct path
-    system_prompt_path = project_root / "Knowledge_Base" / "01_CORE" / "KB_Agent" / "system_prompt_no_ir.md"
+    system_prompt_path = project_root / "Knowledge_Base" / "01_CORE" / "KB_Agent" / "system_prompt.md"
     base_prompt = load_instructions_from_file(str(system_prompt_path))
     
     # Load user profile (will show warning if not found)

@@ -26,35 +26,19 @@ KNOWLEDGE_DIRECTORIES = {
 
     # Core foundational knowledge
     "KB_Agent": "Knowledge_Base/01_CORE/KB_Agent",
-    "KB_Virtuoso": "Knowledge_Base/01_CORE/KB_Virtuoso",
     "KB_SKILL": "Knowledge_Base/01_CORE/KB_SKILL",
 
     # Technology nodes
-    "Tech_28nm": "Knowledge_Base/02_TECHNOLOGY/28nm",
-    "Tech_180nm": "Knowledge_Base/02_TECHNOLOGY/180nm",
+    "Tech_28nm": "Knowledge_Base/02_TECHNOLOGY/T28",
+    "Tech_180nm": "Knowledge_Base/02_TECHNOLOGY/T180",
     "Tech_Config": "Knowledge_Base/02_TECHNOLOGY",
 
     # Design blocks
-    "CDAC": "Knowledge_Base/03_DESIGN_BLOCKS/CDAC",
-    "CDAC_Core": "Knowledge_Base/03_DESIGN_BLOCKS/CDAC/Core",
-    "CDAC_Shapes": "Knowledge_Base/03_DESIGN_BLOCKS/CDAC/Shapes",
     "IO_Ring": "Knowledge_Base/03_DESIGN_BLOCKS/IO_Ring",
     "IO_Ring_Core": "Knowledge_Base/03_DESIGN_BLOCKS/IO_Ring/Core",
 
-    # Verification knowledge
-    "DRC": "Knowledge_Base/04_VERIFICATION/DRC",
-    "LVS": "Knowledge_Base/04_VERIFICATION/LVS",
-    "PEX": "Knowledge_Base/04_VERIFICATION/PEX",
-
-    # Examples
-    "Examples_CDAC": "Knowledge_Base/05_EXAMPLES/cdac_examples",
-    "Examples_IO_Ring": "Knowledge_Base/05_EXAMPLES/io_ring_examples",
-
     # Error knowledge base
-    "Errors": "Knowledge_Base/06_ERRORS",
-    "Errors_CDAC": "Knowledge_Base/06_ERRORS/cdac_errors",
-    "Errors_IO_Ring": "Knowledge_Base/06_ERRORS/io_ring_errors",
-    "Errors_Verification": "Knowledge_Base/06_ERRORS/verification_errors",
+    "Errors": "Knowledge_Base/04_ERRORS",
 }
 
 # Files/directories to skip during knowledge discovery

@@ -79,12 +79,11 @@ def main():
     # Load system prompt with user profile
     system_prompt = load_system_prompt_with_profile()
 
-    # Create master agent with workers
+    # Create master agent with IO tools
     print("\n" + "="*80)
-    print("🤖 Initializing Multi-Agent System")
+    print("🤖 Initializing IO Agent System")
     print("="*80)
-    print("\n📦 Loading master agent with standard tools...")
-    print("🔧 Registering CDAC worker agent...")
+    print("\n📦 Loading agent with IO tools...")
 
     tools_config_path = config.tools.config_path if hasattr(config, 'tools') else "config/tools_config.yaml"
     master_agent = create_master_agent_with_workers(
@@ -92,16 +91,11 @@ def main():
         tools_config_path=tools_config_path
     )
 
-    print("\n✅ Multi-agent system ready!")
+    print("\n✅ IO Agent system ready!")
     print("\n💡 Available capabilities:")
-    print("   - Standard EDA tools (Virtuoso, DRC, LVS, etc.)")
-    print("   - CDAC analysis worker (cdac_analyzer) - intelligent agent with Python coding")
+    print("   - IO Ring generation and layout")
+    print("   - EDA tools (Virtuoso, DRC, LVS, PEX, etc.)")
     print("   - Knowledge base & tool management")
-    print("\n📋 Worker Agent Details:")
-    print("   cdac_analyzer: Analyzes CDAC Excel files using intelligent Python code")
-    print("     • Reads Excel with observe_excel tool")
-    print("     • Analyzes data patterns with custom Python code")
-    print("     • Generates structured JSON for layout generation")
     print("\n" + "="*80)
 
     # Inject master agent system prompt (append to existing)
@@ -119,8 +113,13 @@ def main():
         print("\n💬 Starting CLI interface...")
 
         # Get prompt configuration
-        prompt_key = config.prompt.key if hasattr(config, 'prompt') else None
-        prompt_text = config.prompt.text if hasattr(config, 'prompt') else None
+        # Priority: 1. Environment variable PROMPT_TEXT, 2. Config file
+        prompt_text = os.environ.get('PROMPT_TEXT')
+        if not prompt_text:
+            prompt_key = config.prompt.key if hasattr(config, 'prompt') else None
+            prompt_text = config.prompt.text if hasattr(config, 'prompt') else None
+        else:
+            prompt_key = None  # Don't use prompt_key if PROMPT_TEXT is set
         prompt_config = config.prompt.config_path if hasattr(config, 'prompt') else 'user_prompt'
 
         first_user_input, interrupted = run_cli_interface(
@@ -134,7 +133,7 @@ def main():
         config_info = {
             "model_name": model_config.get("model_id"),
             "first_user_input": first_user_input,
-            "agent_type": "master_with_workers"
+            "agent_type": "io_agent"
         }
         save_agent_memory(master_agent, config_info=config_info)
         master_agent.memory.reset()

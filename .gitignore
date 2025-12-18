@@ -154,3 +154,6 @@ logs/
 
 # merge_source directory
 merge_source/
+
+# Claude local settings (personal configuration)
+.claude/settings.local.json

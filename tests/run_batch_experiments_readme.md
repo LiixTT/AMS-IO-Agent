@@ -1,287 +1,153 @@
-# Batch Experiments - Unified Experiment Script
+# Batch Experiments - IO Ring Design
 
-This project uses a unified batch experiment script `run_batch_experiments.py` that supports multiple experiment types. All experiment prompts are dynamically generated at runtime, eliminating the need to predefine them in YAML files.
-
-## Improvements
-
-### Previous Issues
-1. **Code Duplication**: Maintained nearly identical scripts for each model (claude, gpt, deepseek)
-2. **Bloated YAML Files**: Needed to predefine prompts for each sheet in `user_prompts.yaml`, resulting in huge files that were difficult to maintain
-3. **Maintenance Difficulties**: Modifying prompt templates required updating multiple files and YAML entries
-4. **Scattered Scripts**: Multiple different batch scripts with duplicate functionality
-
-### Current Solution
-1. **Unified Script**: Only one `run_batch_experiments.py` needed, supporting all experiment types
-2. **Dynamic Prompt Generation**: No longer depends on YAML files; prompts are dynamically generated at runtime
-3. **Easy Maintenance**: Prompt templates are centrally managed in code (dictionary registry pattern), modify once to update all
-4. **Easy Extension**: Adding new templates only requires adding entries to the dictionary
+This project provides batch experiment capabilities for IO Ring design testing and validation.
 
 ## Experiment Types
 
-The script supports two experiment types:
+The project supports IO Ring experiments for comprehensive testing across different configurations:
 
-1. **`cdac`** (default): CDAC array experiments based on sheets in Excel files
-2. **`capacitance_shape`**: Capacitance value and shape combination experiments (19 capacitance values × 5 shapes = 95 experiments)
+1. **IO Ring Experiments**: Test IO ring generation with various pad configurations, ring topologies, and voltage domains
 
 ## Usage
 
-### 1. CDAC Experiments
+### IO Ring Batch Experiments
 
-Run CDAC array experiments based on sheets in Excel files.
+Run batch IO ring experiments for comprehensive testing.
 
 #### Basic Usage
 
 ```bash
-# Run default experiments (array-only mode, no prefix)
-python run_batch_experiments.py
+# Run all IO ring experiments
+python tests/run_IO_Ring_batch.py
 
-# Run Claude model experiments (array-only mode, using 'claude_' prefix)
-python run_batch_experiments.py --prefix claude --model-name claude
+# Run with specific model
+python tests/run_IO_Ring_batch.py --model-name deepseek
 
-# Run full flow experiments (unit + dummy + array) using Claude model
-python run_batch_experiments.py --prefix claude --model-name claude --template-type full
+# Start from specific index
+python tests/run_IO_Ring_batch.py --start-index 5
 
-# Run GPT model experiments (array-only mode, using 'gpt_' prefix)
-python run_batch_experiments.py --prefix gpt --model-name gpt-4o
+# Run only first 10 experiments
+python tests/run_IO_Ring_batch.py --stop-index 10
 
-# Run DeepSeek model experiments (array-only mode, using 'deepseek_' prefix)
-python run_batch_experiments.py --prefix deepseek --model-name deepseek
-
-# Preview generated prompt
-python run_batch_experiments.py --prefix claude --template-type full --preview-prompt first
-
-# Start from the 5th experiment
-python run_batch_experiments.py --prefix claude --start-index 5
-
-# Run only the first 10 experiments
-python run_batch_experiments.py --prefix claude --stop-index 10
-
-# Run in parallel (using different RAMIC ports)
-python run_batch_experiments.py --prefix claude --ramic-port-start 65432
+# Dry run to preview experiments
+python tests/run_IO_Ring_batch.py --dry-run
 ```
-
-### 2. Capacitance/Shape Experiments
-
-Run combination experiments of different capacitance values and unit capacitor shapes.
 
 #### Experiment Configuration
-- **Capacitance Values**: 19 values (0.1, 0.2, ..., 0.9, 1, 2, ..., 10 fF)
-- **Shapes**: 5 shapes (H, H_shieldless, I, I_shield, sandwich_simplified_h_notch)
-- **Total Experiments**: 95 (19 × 5)
-- **Timeout per Experiment**: 50 minutes
 
-#### Basic Usage
-
-```bash
-# Run all capacitance value and shape combinations (95 experiments)
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --model-name claude
-
-# Preview first prompt
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --preview-prompt first
-
-# Start from the 10th experiment
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 10
-
-# Run only the first 20 experiments
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --stop-index 20
-
-# Run in parallel (using different RAMIC ports)
-# Terminal 1: Run first 32 experiments
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 1 --stop-index 32 --ramic-port-start 65432
-
-# Terminal 2: Run experiments 33 to 64
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 33 --stop-index 64 --ramic-port-start 65433
-
-# Terminal 3: Run remaining experiments
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 65 --ramic-port-start 65434
-```
-
-## Template Types
-
-The script supports three prompt template types:
-
-1. **`array`** (CDAC default): Only generate CDAC array, skip unit cell and dummy generation
-   - Suitable when unit and dummy already exist
-   - Faster, only executes Phase 3
-
-2. **`full`** (CDAC): Complete flow with three phases
-   - Phase 1: Generate unit H-shape capacitor
-   - Phase 2: Generate dummy capacitor
-   - Phase 3: Generate CDAC array
-   - Suitable for complete design from scratch
-
-3. **`capacitance_shape`** (automatic): Capacitance value and shape combination experiments
-   - Phase 1: Generate unit capacitor (specified capacitance value and shape)
-   - Phase 2: Generate dummy capacitor
-   - Suitable for testing different combinations of capacitance values and shapes
+- **Pad Configurations**: 3x3, 6x6, 12x12, 12x18, 18x18
+- **Ring Topologies**: Single ring, Double ring
+- **Design Types**: Digital, Analog, Mixed-signal
+- **Voltage Domains**: Single domain, Multi-domain
+- **Total Test Cases**: 20+ configurations
 
 ## Common Parameters
 
 All experiment types support the following parameters:
 
-### Model and Prefix
-- `--prefix`: Prefix (e.g., 'claude', 'gpt', 'deepseek')
+### Model Configuration
 - `--model-name`: Model name (e.g., 'claude', 'gpt-4o', 'deepseek')
 
 ### Experiment Range
 - `--start-index`: Start from the Nth experiment (1-based)
 - `--stop-index`: Run up to the Nth experiment (inclusive)
-- `--start-from`: Start from specific sheet name (CDAC experiments only)
-- `--stop-at`: Run up to specific sheet name (CDAC experiments only)
 
 ### Preview and Testing
 - `--dry-run`: Preview mode, only list experiments to be run
-- `--preview-prompt`: Preview generated prompt ('first', 'all', or specific sheet name)
+- `--list-layouts`: List all available test configurations
 
 ### RAMIC Configuration
-- `--ramic-port`: All experiments use the same port
-- `--ramic-port-start`: Each experiment uses an incremental port (port_start + index)
-- `--ramic-host`: RAMIC host address
+- `--ramic-port`: RAMIC bridge port number
+- `--ramic-host`: RAMIC host address (default: localhost)
 
-### Others
-- `--excel-file`: Excel file path (CDAC experiments only, default: excel/CDAC_3-8bit.xlsx)
-- `--experiment-type`: Experiment type ('cdac' or 'capacitance_shape', default: 'cdac')
-- `--template-type`: Template type ('array', 'full', 'capacitance_shape')
-
-### Advanced Option Examples
+### Advanced Options
 
 ```bash
-# Specify Excel file
-python run_batch_experiments.py --excel-file path/to/file.xlsx --prefix claude
+# List all available test cases
+python tests/run_IO_Ring_batch.py --list-layouts
 
-# Start from specific sheet
-python run_batch_experiments.py --prefix claude --start-from "Sheet3"
+# Run specific range of tests
+python tests/run_IO_Ring_batch.py --start-index 1 --stop-index 5 --model-name deepseek
 
-# Run up to specific sheet
-python run_batch_experiments.py --prefix claude --stop-at "Sheet10"
-
-# Preview all prompts
-python run_batch_experiments.py --prefix claude --preview-prompt all
-
-# Preview prompt for specific sheet
-python run_batch_experiments.py --prefix claude --preview-prompt "Sheet3"
+# Use custom RAMIC port
+python tests/run_IO_Ring_batch.py --ramic-port 9124
 ```
 
-## Prompt Generation
+## Test Configurations
 
-Prompts are now defined in the `PROMPT_TEMPLATES` dictionary in `run_batch_experiments.py` and dynamically generated through the `generate_prompt_text()` function. Modifying templates in the dictionary updates prompts for all experiments.
+The IO ring experiments include various test cases covering:
 
-### Prompt Template Location
-- File: `run_batch_experiments.py`
-- Location: `PROMPT_TEMPLATES` dictionary at the top of the file
-- Function: `generate_prompt_text()`
+1. **Single Ring Designs**:
+   - Digital IO (3x3, 6x6, 12x12, 18x18)
+   - Analog IO (6x6, 12x12)
+   - Mixed-signal IO (12x12, 18x18)
+   - Multi-voltage domain designs
 
-### Preview Prompts
+2. **Double Ring Designs**:
+   - High-density configurations (12x18, 18x18)
+   - Multi-voltage domain support
+   - Complex routing scenarios
 
-Before running experiments, you can preview generated prompts:
-
-```bash
-# Preview first prompt (as example)
-python run_batch_experiments.py --prefix claude --preview-prompt first
-
-# Preview all prompts
-python run_batch_experiments.py --prefix claude --preview-prompt all
-
-# Preview prompt for specific sheet
-python run_batch_experiments.py --prefix claude --preview-prompt "Sheet3"
-```
-
-This is very useful for verifying that prompt templates are correct.
+3. **Technology Nodes**:
+   - 28nm wire-bonding
+   - 180nm wire-bonding
 
 ## Log Files
 
 All experiment logs are saved in:
-- CDAC experiments: `logs/batch_cdac_{prefix}_{template_type}/`
-- Capacitance/Shape experiments: `logs/batch_capacitance_shape_{prefix}_capacitance_shape/`
+- IO Ring experiments: `logs/batch_io_ring/`
 
-Log file naming format: `{prompt_key}_{timestamp}.log`
+Log file naming format: `{test_name}_{timestamp}.log`
 
 ## Running Recommendations
 
 ### Single Machine Run
 ```bash
 # Run all experiments directly (sequential execution)
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --model-name claude
+python tests/run_IO_Ring_batch.py --model-name claude
 ```
 
-### Parallel Run (Recommended)
+### Parallel Run (if supported)
 
-If you have multiple machines or can start multiple Virtuoso instances, you can run in parallel:
+If running multiple instances in parallel:
 
 ```bash
-# Divide 95 experiments into 3 groups, approximately 32 each
-# Terminal 1
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 1 --stop-index 32 --ramic-port-start 65432
+# Terminal 1: Run first 10 experiments
+python tests/run_IO_Ring_batch.py --start-index 1 --stop-index 10 --ramic-port 9123
 
-# Terminal 2
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 33 --stop-index 64 --ramic-port-start 65433
-
-# Terminal 3
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 65 --ramic-port-start 65434
+# Terminal 2: Run next 10 experiments
+python tests/run_IO_Ring_batch.py --start-index 11 --stop-index 20 --ramic-port 9124
 ```
 
 ## Notes
 
-1. **Timeout Setting**: Each experiment runs for a maximum of 50 minutes, automatically terminates and continues to the next after timeout
-2. **Auto Exit**: Script automatically sends "exit" command, no manual intervention needed
+1. **Timeout Setting**: Each experiment has a reasonable timeout, automatically continues to next after timeout
+2. **Auto Exit**: Script automatically handles experiment completion
 3. **Error Handling**: If an experiment fails, script automatically continues to the next experiment
 4. **Parallel Run**: If running in parallel, ensure each instance uses a different RAMIC port
-5. **Resource Usage**: Each experiment consumes some CPU and memory, monitor system resources
-6. **Dynamic Prompt Generation**: No longer need to predefine prompts in YAML; all prompts are dynamically generated at runtime
+5. **Resource Usage**: Each experiment consumes CPU and memory, monitor system resources
 
 ## Time Estimates
 
-### Capacitance/Shape Experiments (95 experiments)
-- **Single Thread**: 95 experiments × 20 minutes ≈ 32 hours
-- **3 Threads Parallel**: ≈ 11 hours
-- **5 Threads Parallel**: ≈ 6.5 hours
+### IO Ring Experiments (20+ test cases)
+- **Single Thread**: 20 experiments × 15 minutes ≈ 5 hours
+- **2 Threads Parallel**: ≈ 2.5 hours
 
-### CDAC Experiments (20 sheets)
-- **Single Thread**: 20 experiments × 40 minutes ≈ 13 hours
-- **3 Threads Parallel**: ≈ 4.5 hours
+Actual time varies based on design complexity and model performance.
 
 ## Resume Running
 
 If experiments are interrupted, you can continue from a specified position:
 
 ```bash
-# Continue from the 50th experiment
-python run_batch_experiments.py --experiment-type capacitance_shape --prefix claude --start-index 50
-
-# CDAC experiments: Continue from specific sheet
-python run_batch_experiments.py --prefix claude --start-from "6bit_1"
+# Continue from the 10th experiment
+python tests/run_IO_Ring_batch.py --start-index 10
 ```
 
-## Technical Details
+## Advantages
 
-### Prompt Passing Method
-1. Dynamically generate prompt text
-2. Write to temporary file `user_prompt.txt`
-3. `multi_agent_main.py` automatically reads this file
-4. Automatically clean up temporary file after experiment ends
-
-### New CLI Parameters
-- `--prompt-text`: Directly pass prompt text (available in `multi_agent_main.py`, but batch script uses file method which is more reliable)
-
-## Advantages Summary
-
-✅ **Clean Code**: Reduced from multiple duplicate scripts to 1 unified script  
-✅ **Easy Maintenance**: Prompt templates use dictionary registry pattern, centralized management, easy to extend  
-✅ **No YAML Needed**: No longer need to predefine large amounts of prompts in YAML  
-✅ **Flexible Configuration**: Easily switch models, experiment types, and configurations via command line parameters  
-✅ **Easy Extension**: Adding new templates only requires adding entries to `PROMPT_TEMPLATES` dictionary  
-✅ **Unified Interface**: All experiment types use the same command line interface  
-✅ **Backward Compatible**: Still supports using prompts from YAML via `--prompt` (for other scenarios)
-
-## Deprecated Files
-
-The following files have been integrated into `run_batch_experiments.py` and can be safely deleted:
-- ✅ `run_batch_experiments_claude.py` - Deleted
-- ✅ `run_batch_experiments_gpt.py` - Deleted
-- ✅ `run_batch_experiments_deepseek.py` - Deleted
-- ✅ `run_capacitance_shape_batch.py` - Deleted
-- ✅ `generate_test_array_prompts.py` - Deleted
-- ✅ `generate_test_array_deepseek_prompts.py` - Deleted
-- ✅ `generate_capacitance_shape_prompts.py` - Deleted
-
-All functionality is now managed through `run_batch_experiments.py`.
+✅ **Comprehensive Testing**: Cover various IO ring configurations and scenarios  
+✅ **Automated Validation**: Automatic DRC, LVS verification  
+✅ **Flexible Configuration**: Easily switch models and configurations via command line  
+✅ **Progress Tracking**: Detailed logging and progress reporting  
+✅ **Easy Extension**: Add new test cases by extending benchmark suite

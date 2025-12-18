@@ -59,6 +59,10 @@ TOOL_REGISTRY = {
     "analyze_image_path": ("src.tools.image_vision_tool", "analyze_image_path"),
     "analyze_image_b64": ("src.tools.image_vision_tool", "analyze_image_b64"),
     
+    # IO Layout Descriptor
+    "describe_io_layout_image": ("src.tools.io_layout_descriptor_tool", "describe_io_layout_image"),
+    "compare_io_layout_images": ("src.tools.io_layout_descriptor_tool", "compare_io_layout_images"),
+    
     # User profile management (write-only, profile is pre-loaded in system prompt)
     "update_user_profile": ("src.tools.user_profile_tool", "update_user_profile"),
     
@@ -182,10 +186,17 @@ def get_default_config() -> Dict[str, Any]:
             ]
         },
         "image_vision": {
-            "enabled": True,
+            "enabled": False,  # Disabled: Using io_layout_descriptor instead
             "tools": [
                 "analyze_image_path",
                 "analyze_image_b64",
+            ]
+        },
+        "io_layout_descriptor": {
+            "enabled": True,
+            "tools": [
+                "describe_io_layout_image",
+                "compare_io_layout_images",
             ]
         },
         "user_profile": {

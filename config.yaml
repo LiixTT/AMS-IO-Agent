@@ -76,6 +76,6 @@ tools:
   config_path: "src/tools/tools_config.yaml"
 
 system:
-  # Agent architecture: "master_with_workers" enables multi-agent system
-  agent_type: "master_with_workers"
-  multi_agent: true
+  # Agent architecture: IO ring design agent
+  agent_type: "io_agent"
+  multi_agent: false

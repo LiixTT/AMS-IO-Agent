@@ -271,8 +271,8 @@ def run_lvs(cell: Optional[str] = None, lib: Optional[str] = None, view: str = "
         
         # Execute csh script using bridge_utils
         try:
-            # Note: run_lvs.csh expects arguments in order: <library> <topCell> [view]
-            result = execute_csh_script(str(script_path), lib, cell, view, timeout=300)
+            # Note: run_lvs.csh expects arguments in order: <library> <topCell> [view] [tech_node]
+            result = execute_csh_script(str(script_path), lib, cell, view, tech_node, timeout=300)
             
             if result and not result.startswith("Remote csh execution failed"):
                 # Generate report filename with timestamp
