@@ -81,7 +81,7 @@ def create_agent(model, final_instructions, show_code_execution: bool = False, c
     
     # Load all existing Python helper tools (hot-reload support)
     try:
-        from ..tools.python_tool_creator import load_all_python_helpers
+        from src.tools.python_tool_creator import load_all_python_helpers
         load_all_python_helpers()
     except Exception as e:
         print(f"Warning: Failed to load Python helpers: {e}")
@@ -143,6 +143,19 @@ def _load_config_from_file(config_file):
                 config = yaml.safe_load(f)
             elif file_ext == '.json':
                 config = json.load(f)
+            elif file_ext == '.txt':
+                # For .txt files, try to parse as YAML first (some .txt files are YAML format)
+                if has_yaml:
+                    try:
+                        f.seek(0)
+                        config = yaml.safe_load(f)
+                        # Only return if it's a dict (valid YAML config)
+                        if config and isinstance(config, dict):
+                            return config
+                    except:
+                        # Not YAML, return None (will be handled by caller)
+                        pass
+                return None  # .txt files are handled separately in load_prompt_from_config
             else:
                 # Try YAML first, then JSON
                 if has_yaml:
@@ -190,12 +203,13 @@ def _get_config_files(config_path):
     else:
         search_dir = path_obj
     
-    # Find all YAML/JSON files in the directory
+    # Find all YAML/JSON/TXT files in the directory
     config_files = []
     if search_dir.exists() and search_dir.is_dir():
         config_files.extend(search_dir.glob('*.yaml'))
         config_files.extend(search_dir.glob('*.yml'))
         config_files.extend(search_dir.glob('*.json'))
+        config_files.extend(search_dir.glob('*.txt'))  # Also support .txt files
     
     # Remove duplicates and sort
     config_files = sorted(set(config_files))
@@ -207,22 +221,98 @@ def load_prompt_from_config(prompt_key, config_file="user_prompt"):
     Load prompt from configuration files in a directory by key.
     If a file path is provided, searches in its parent directory.
     
+    Supports multiple formats:
+    - YAML/JSON files: Look for key in the file content
+    - TXT files: If filename (without extension) matches the key, load the file content
+    
+    Search order:
+    1. First searches in the specified config_file directory
+    2. If not found, automatically searches in AMS-IO-Bench subdirectories
+    
     Args:
         prompt_key: Key to look up in the config files
         config_file: Path to directory (or file, in which case its parent directory is used)
-                    All YAML/JSON files in the directory will be searched
+                    All YAML/JSON/TXT files in the directory will be searched
         
     Returns:
         Prompt string if found, None otherwise
         (searches files in alphabetical order, returns first match)
     """
+    from pathlib import Path
+    
+    # First, search in the specified directory
     config_files = _get_config_files(config_file)
     
     # Search through all config files in order
     for config_path in config_files:
+        file_ext = config_path.suffix.lower()
+        
+        # For TXT files, try two approaches:
+        # 1. If filename matches key, load entire file content
+        # 2. Try parsing as YAML (some .txt files are YAML format with key: |)
+        if file_ext == '.txt':
+            file_name_without_ext = config_path.stem
+            if file_name_without_ext == prompt_key:
+                # Load entire file content as prompt
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        # If it's YAML format (starts with key: |), try to extract the value
+                        try:
+                            import yaml
+                            yaml_config = yaml.safe_load(content)
+                            if yaml_config and isinstance(yaml_config, dict) and prompt_key in yaml_config:
+                                return yaml_config[prompt_key]
+                        except:
+                            pass
+                        # Otherwise return the content as-is
+                        return content
+                except Exception as e:
+                    continue
+        
+        # For YAML/JSON files, look for key in the file content
         config = _load_config_from_file(config_path)
         if config and prompt_key in config:
             return config[prompt_key]
+    
+    # If not found in specified directory, search in AMS-IO-Bench
+    project_root = Path(__file__).parent.parent.parent.parent
+    bench_dir = project_root / "AMS-IO-Bench"
+    
+    if bench_dir.exists() and bench_dir.is_dir():
+        # Search in all subdirectories of AMS-IO-Bench
+        for subdir in bench_dir.iterdir():
+            if subdir.is_dir():
+                bench_files = _get_config_files(str(subdir))
+                for config_path in bench_files:
+                    file_ext = config_path.suffix.lower()
+                    
+                    # For TXT files, try two approaches:
+                    # 1. If filename matches key, load entire file content
+                    # 2. Try parsing as YAML (some .txt files are YAML format with key: |)
+                    if file_ext == '.txt':
+                        file_name_without_ext = config_path.stem
+                        if file_name_without_ext == prompt_key:
+                            try:
+                                with open(config_path, 'r', encoding='utf-8') as f:
+                                    content = f.read().strip()
+                                    # If it's YAML format (starts with key: |), try to extract the value
+                                    try:
+                                        import yaml
+                                        yaml_config = yaml.safe_load(content)
+                                        if yaml_config and isinstance(yaml_config, dict) and prompt_key in yaml_config:
+                                            return yaml_config[prompt_key]
+                                    except:
+                                        pass
+                                    # Otherwise return the content as-is
+                                    return content
+                            except Exception as e:
+                                continue
+                    
+                    # For YAML/JSON files, look for key in the file content
+                    config = _load_config_from_file(config_path)
+                    if config and prompt_key in config:
+                        return config[prompt_key]
     
     return None
 
@@ -339,8 +429,16 @@ def run_cli_interface(agent, prompt_key=None, prompt_text=None, prompt_config_fi
                 print(f"   Searched in: {', '.join(prompts_by_file.keys())}")
                 print(f"   Available keys: {', '.join(all_keys[:20])}{'...' if len(all_keys) > 20 else ''}")
             else:
-                print(f"⚠️  Warning: No config files found or all are empty")
-                print(f"   Searched in: {prompt_config_file}")
+                from pathlib import Path
+                search_path = Path(prompt_config_file)
+                if not search_path.exists():
+                    print(f"⚠️  Warning: Prompt directory '{prompt_config_file}' does not exist")
+                    print(f"   Please create the directory and add prompt files (YAML/JSON/TXT)")
+                    print(f"   Or update config.yaml to point to an existing directory")
+                else:
+                    print(f"⚠️  Warning: No config files found or all are empty")
+                    print(f"   Searched in: {prompt_config_file}")
+                    print(f"   Supported formats: .yaml, .yml, .json, .txt")
             print("   Falling back to interactive input or user_prompt.txt\n")
     
     # 3. If no prompt from config key, try user_prompt.txt (backward compatibility)
@@ -363,8 +461,15 @@ def run_cli_interface(agent, prompt_key=None, prompt_text=None, prompt_config_fi
                 if is_first_turn and auto_prompt:
                     user_input = auto_prompt
                     print(f"[User prompt]: {user_input}")
+                    # If prompt came from environment variable (batch mode), exit after first turn
+                    if os.environ.get('PROMPT_TEXT'):
+                        # Set flag to exit after this turn
+                        env_exit_after_first = True
+                    else:
+                        env_exit_after_first = False
                 else:
                     user_input = input("\n[User prompt]: ").strip()
+                    env_exit_after_first = False
 
                 # Skip empty inputs (can happen after Ctrl-C on Windows)
                 if not user_input:
@@ -390,6 +495,11 @@ def run_cli_interface(agent, prompt_key=None, prompt_text=None, prompt_config_fi
                     task_logger.end_task("success")
                     previous_task_interrupted = False
                     interrupted_task_prompt = None
+                    
+                    # If running in batch mode (PROMPT_TEXT env var set), exit after first task
+                    if os.environ.get('PROMPT_TEXT') and is_first_turn:
+                        print("\n[Batch mode] Task completed. Exiting...")
+                        break
                 except KeyboardInterrupt:
                     # Ctrl-C during agent.run() - check for double Ctrl-C exit
                     current_time = time.time()

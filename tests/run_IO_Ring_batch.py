@@ -233,10 +233,215 @@ from pathlib import Path
 from datetime import datetime
 import time
 import yaml
+import tempfile
+import threading
 
-# Import run_experiment from run_batch_experiments.py
-# We'll reuse the same experiment running logic
-# Note: We need to import it at runtime to avoid circular imports
+# ============================================================================
+# Experiment Runner
+# ============================================================================
+
+def run_experiment(excel_file, sheet_name, prefix, template_type, model_name, 
+                   ramic_port, ramic_host, log_dir, batch_interrupted_flag, 
+                   current_process_ref, prompt_text, prompt_key):
+    """
+    Run a single IO ring experiment
+    
+    Args:
+        excel_file: Not used for IO ring experiments
+        sheet_name: Pad layout name (for logging)
+        prefix: Prefix for experiment naming
+        template_type: Type of template (always "io_ring" for this script)
+        model_name: Model name to use
+        ramic_port: RAMIC bridge port number
+        ramic_host: RAMIC bridge host address
+        log_dir: Directory to save logs
+        batch_interrupted_flag: Dictionary with 'flag' key for interruption signal
+        current_process_ref: Dictionary with 'process' key for current subprocess
+        prompt_text: The actual prompt text to send to the agent
+        prompt_key: Key for logging purposes
+    
+    Returns:
+        Dictionary with experiment results
+    """
+    start_time = time.time()
+    
+    # Create log directory
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Generate log filename
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_file = os.path.join(log_dir, f"{prompt_key}_{timestamp}.log")
+    
+    # Create temporary prompt file
+    temp_prompt_file = tempfile.NamedTemporaryFile(mode='w', delete=False, 
+                                                    suffix='.txt', encoding='utf-8')
+    temp_prompt_file.write(prompt_text)
+    temp_prompt_file.close()
+    
+    try:
+        # Build command
+        cmd = [sys.executable, "main.py"]
+        
+        # Add model name if specified
+        if model_name:
+            # Update config.yaml temporarily or pass via environment
+            # For simplicity, we'll update the environment
+            pass  # The model should be configured in config.yaml
+        
+        # Set RAMIC environment variables
+        env = os.environ.copy()
+        if ramic_port:
+            env['RB_PORT'] = str(ramic_port)
+        if ramic_host:
+            env['RB_HOST'] = ramic_host
+        
+        # Pass prompt text via environment variable
+        # This allows main.py to read it and pass to run_cli_interface
+        env['PROMPT_TEXT'] = prompt_text
+        
+        print(f"Running experiment: {prompt_key}")
+        print(f"Log file: {log_file}")
+        if ramic_port:
+            print(f"RAMIC port: {ramic_port}")
+        
+        # Run experiment with timeout (50 minutes = 3000 seconds)
+        timeout = 3000  # 50 minutes
+        
+        # Function to tee output to both file and stdout
+        def tee_output(pipe, log_file, stdout):
+            """Read from pipe and write to both file and stdout"""
+            try:
+                for line in iter(pipe.readline, ''):
+                    if not line:
+                        break
+                    # Write to log file
+                    try:
+                        log_file.write(line)
+                        log_file.flush()
+                    except (ValueError, OSError):
+                        pass
+                    # Write to stdout
+                    try:
+                        stdout.write(line)
+                        stdout.flush()
+                    except (ValueError, OSError):
+                        pass
+            except Exception:
+                pass
+            finally:
+                pipe.close()
+        
+        with open(log_file, 'w', encoding='utf-8') as log_f:
+            # Write header to both file and terminal
+            header = f"Experiment: {prompt_key}\nStarted: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nPrompt text:\n{'-'*80}\n{prompt_text}\n{'-'*80}\n\n"
+            log_f.write(header)
+            log_f.flush()
+            print(header, end='')
+            
+            # Start process with PIPE for stdout/stderr
+            if sys.platform.startswith('win'):
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    env=env,
+                    text=True,
+                    encoding='utf-8',
+                    bufsize=1  # Line buffered
+                )
+            else:
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    env=env,
+                    text=True,
+                    encoding='utf-8',
+                    bufsize=1,  # Line buffered
+                    preexec_fn=os.setsid
+                )
+            
+            # Start thread to tee output
+            tee_thread = threading.Thread(
+                target=tee_output,
+                args=(process.stdout, log_f, sys.stdout),
+                daemon=True
+            )
+            tee_thread.start()
+            
+            current_process_ref['process'] = process
+            
+            try:
+                # Prompt text is passed via environment variable PROMPT_TEXT
+                # The CLI interface will automatically use it and then exit
+                # No need to send via stdin - just close stdin to indicate no more input
+                process.stdin.close()
+                
+                # Wait with timeout
+                process.wait(timeout=timeout)
+                
+                # Wait for tee thread to finish reading remaining output
+                tee_thread.join(timeout=5)
+                
+                elapsed_time = time.time() - start_time
+                
+                if process.returncode == 0:
+                    return {
+                        "success": True,
+                        "prompt_key": prompt_key,
+                        "elapsed_time": elapsed_time,
+                        "log_file": log_file,
+                        "error": None
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "prompt_key": prompt_key,
+                        "elapsed_time": elapsed_time,
+                        "log_file": log_file,
+                        "error": f"Process exited with code {process.returncode}"
+                    }
+                    
+            except subprocess.TimeoutExpired:
+                # Timeout - kill process
+                if sys.platform.startswith('win'):
+                    process.kill()
+                else:
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except Exception:
+                        process.kill()
+                
+                elapsed_time = time.time() - start_time
+                return {
+                    "success": False,
+                    "prompt_key": prompt_key,
+                    "elapsed_time": elapsed_time,
+                    "log_file": log_file,
+                    "error": f"Experiment timed out after {timeout} seconds"
+                }
+            
+            except KeyboardInterrupt:
+                # User interrupted
+                if sys.platform.startswith('win'):
+                    process.kill()
+                else:
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except Exception:
+                        process.kill()
+                raise
+                
+    finally:
+        # Clean up temporary prompt file
+        try:
+            os.unlink(temp_prompt_file.name)
+        except Exception:
+            pass
+        
+        current_process_ref['process'] = None
 
 # ============================================================================
 # Helper Functions
@@ -244,134 +449,111 @@ import yaml
 
 def generate_prompt_text(pad_layout_name, prefix="", library_name="LLM_Layout_Design", cell_name=None, view_name="schematic"):
     """
-    Generate prompt text from pad layout template
+    Generate prompt text from AMS-IO-Bench directory
     
     Args:
-        pad_layout_name: Name of the pad layout configuration
-        prefix: Prefix for prompt keys (optional)
+        pad_layout_name: Name of the pad layout (filename without .txt extension)
+        prefix: Prefix for prompt keys (optional, not used when reading from Bench)
         library_name: Library name (default: "LLM_Layout_Design")
         cell_name: Cell name (default: auto-generated from pad_layout_name)
         view_name: View name (default: "schematic" for schematic, "layout" for layout)
     
     Returns:
-        Formatted prompt string
+        Formatted prompt string from AMS-IO-Bench file
     """
-    if pad_layout_name not in PAD_LAYOUTS:
-        raise ValueError(f"Unknown pad layout: {pad_layout_name}")
+    from pathlib import Path
+    import yaml
     
-    layout = PAD_LAYOUTS[pad_layout_name]
-    # Ensure description ends with a space if it doesn't end with punctuation
-    description = layout["description"]
-    if not description.endswith(('.', '!', '?', ' ')):
-        description += " "
-    elif description.endswith('.'):
-        description += " "
+    # Get project root
+    project_root = Path(__file__).parent.parent
+    bench_dir = project_root / "AMS-IO-Bench"
     
-    # Generate cell name if not provided
-    if cell_name is None:
-        # Convert pad_layout_name to cell name format (e.g., "3x3_single_ring_digital" -> "IO_RING_3x3_single_ring_digital")
-        cell_name = f"IO_RING_{pad_layout_name}"
-        if prefix:
-            cell_name = f"{prefix}_{cell_name}"
+    # Search for the file in all subdirectories
+    prompt_file = None
+    for subdir in bench_dir.iterdir():
+        if subdir.is_dir() and "golden_output" not in str(subdir):
+            candidate_file = subdir / f"{pad_layout_name}.txt"
+            if candidate_file.exists():
+                prompt_file = candidate_file
+                break
     
-    prompt = layout["template"].format(
-        description=description,
-        signals=layout["signals"],
-        library_name=library_name,
-        cell_name=cell_name,
-        view_name=view_name
-    )
+    if not prompt_file:
+        raise ValueError(f"Prompt file not found for '{pad_layout_name}' in AMS-IO-Bench directory")
     
-    # Remove "Steps to complete" section if present
-    if "\n\nSteps to complete:" in prompt:
-        prompt = prompt.split("\n\nSteps to complete:")[0].rstrip()
-    
-    # Improve formatting: ensure description and signals are separated, and extract voltage domain info
-    if "Design requirements:" in prompt and "Signal names:" in prompt:
-        lines = prompt.split('\n')
-        new_lines = []
-        i = 0
-        voltage_domain_info = []
+    # Read file content
+    try:
+        with open(prompt_file, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
         
-        while i < len(lines):
-            line = lines[i]
-            # Look for "Design requirements:" line
-            if "Design requirements:" in line:
-                new_lines.append(line)
-                i += 1
-                # Next line should be description
-                if i < len(lines):
-                    desc_line = lines[i]
-                    # If description line contains "Signal names:", split them
-                    if "Signal names:" in desc_line:
-                        # Split description and signals
-                        parts = desc_line.split("Signal names:", 1)
-                        if parts[0].strip():
-                            new_lines.append(parts[0].strip())
-                        new_lines.append("")
-                        
-                        # Process signals part - extract voltage domain info
-                        signals_part = parts[1] if len(parts) > 1 else ""
-                        # Check for voltage domain patterns
-                        if "Among them" in signals_part or "voltage domain" in signals_part.lower():
-                            # Extract voltage domain info
-                            if "Among them" in signals_part:
-                                # Split signals and voltage domain info
-                                signals_clean = signals_part.split("Among them")[0].strip()
-                                # Remove trailing period from signals
-                                signals_clean = signals_clean.rstrip('.')
-                                
-                                voltage_text = signals_part.split("Among them", 1)[1] if "Among them" in signals_part else ""
-                                # Clean up voltage domain text
-                                if voltage_text:
-                                    # Remove leading/trailing whitespace, comma, and period
-                                    voltage_text = voltage_text.strip().lstrip(',').strip().rstrip('.')
-                                    # Remove "Among them" prefix if present in the extracted text
-                                    if voltage_text.lower().startswith("among them"):
-                                        voltage_text = voltage_text[10:].strip().lstrip(',').strip()
-                                    if voltage_text:
-                                        voltage_domain_info.append(voltage_text)
-                                
-                                new_lines.append("Signal names: " + signals_clean)
-                            else:
-                                # Clean signals part
-                                signals_clean = signals_part.strip().rstrip('.')
-                                new_lines.append("Signal names: " + signals_clean)
-                        else:
-                            # Clean signals part
-                            signals_clean = signals_part.strip().rstrip('.')
-                            new_lines.append("Signal names: " + signals_clean)
-                    else:
-                        new_lines.append(desc_line)
-                    i += 1
-            else:
-                new_lines.append(line)
-                i += 1
+        # Try to parse as YAML (some files are YAML format with key: |)
+        # First, try to find the key in the content
+        lines = content.split('\n')
+        key_line_idx = None
         
-        # Insert voltage domain requirements section if we extracted any
-        if voltage_domain_info:
-            # Find where to insert (before Configuration section)
-            final_lines = []
-            inserted = False
-            for line in new_lines:
-                if not inserted and line.strip().startswith("Configuration:"):
-                    # Insert voltage domain section before Configuration
-                    final_lines.append("")
-                    final_lines.append("Voltage domain requirements:")
-                    for vd_info in voltage_domain_info:
-                        # Format as bullet point
-                        vd_clean = vd_info.strip()
-                        if not vd_clean.startswith("-"):
-                            vd_clean = "- " + vd_clean
-                        final_lines.append(vd_clean)
-                    final_lines.append("")
-                    inserted = True
-                final_lines.append(line)
-            prompt = '\n'.join(final_lines)
-        else:
-            prompt = '\n'.join(new_lines)
-    
-    return prompt
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped and f"{pad_layout_name}:" in stripped:
+                key_line_idx = i
+                break
+        
+        # If we found the key line, try YAML parsing
+        if key_line_idx is not None:
+            try:
+                yaml_config = yaml.safe_load(content)
+                if yaml_config and isinstance(yaml_config, dict):
+                    # If it's a dict, look for the key matching pad_layout_name
+                    if pad_layout_name in yaml_config:
+                        prompt = yaml_config[pad_layout_name]
+                        # If it's a string, return it; if it's a dict, extract text
+                        if isinstance(prompt, str):
+                            result = prompt.strip()
+                            if result:
+                                return result
+            except Exception as yaml_error:
+                # YAML parsing failed, will try manual parsing below
+                pass
+        
+        # If content starts with the key (YAML format but not parsed correctly)
+        # Check if first non-empty line contains the key
+        lines = content.split('\n')
+        key_found = False
+        start_idx = 0
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Check if this line contains the key with colon
+            if f"{pad_layout_name}:" in stripped:
+                key_found = True
+                start_idx = i + 1
+                break
+        
+        if key_found and start_idx < len(lines):
+            # Extract content after the key line
+            remaining_lines = lines[start_idx:]
+            # Find minimum indentation (excluding empty lines)
+            min_indent = min(
+                (len(line) - len(line.lstrip()) for line in remaining_lines if line.strip()),
+                default=0
+            )
+            # Remove indentation
+            prompt_lines = []
+            for line in remaining_lines:
+                if line.strip():
+                    # Remove the minimum indentation
+                    prompt_lines.append(line[min_indent:])
+                else:
+                    prompt_lines.append("")
+            result = '\n'.join(prompt_lines).strip()
+            if result:
+                return result
+        
+        # Return content as-is (fallback)
+        return content
+        
+    except Exception as e:
+        raise ValueError(f"Failed to read prompt file '{prompt_file}': {e}")
 
 def generate_prompt_key(pad_layout_name, prefix=""):
     """Generate prompt key from pad layout name"""
@@ -380,8 +562,37 @@ def generate_prompt_key(pad_layout_name, prefix=""):
     return f"{prefix}io_ring_{pad_layout_name}"
 
 def get_available_pad_layouts():
-    """Get list of available pad layout names"""
-    return list(PAD_LAYOUTS.keys())
+    """Get list of available pad layout names from AMS-IO-Bench directory (28nm only, excluding 180nm)"""
+    from pathlib import Path
+    import yaml
+    
+    # Get project root
+    project_root = Path(__file__).parent.parent
+    bench_dir = project_root / "AMS-IO-Bench"
+    
+    pad_layouts = []
+    
+    if bench_dir.exists() and bench_dir.is_dir():
+        # Search in all subdirectories of AMS-IO-Bench
+        for subdir in bench_dir.iterdir():
+            if subdir.is_dir():
+                # Skip 180nm directories
+                if "180nm" in subdir.name.lower():
+                    continue
+                
+                # Find all .txt files
+                for txt_file in subdir.glob("*.txt"):
+                    # Skip golden_output directory
+                    if "golden_output" in str(txt_file):
+                        continue
+                    
+                    # Extract layout name from filename (without extension)
+                    layout_name = txt_file.stem
+                    pad_layouts.append(layout_name)
+    
+    # Remove duplicates and sort
+    pad_layouts = sorted(set(pad_layouts))
+    return pad_layouts
 
 def generate_io_ring_yaml(output_file="user_prompt/IO_RING.yaml", prefix="", library_name="LLM_Layout_Design", view_name="schematic"):
     """
@@ -544,17 +755,12 @@ Examples:
     
     # List layouts if requested
     if args.list_layouts:
-        print("Available pad layout configurations:")
+        print("Available pad layout configurations from AMS-IO-Bench:")
         print("=" * 80)
-        for i, layout_name in enumerate(get_available_pad_layouts(), 1):
-            layout = PAD_LAYOUTS[layout_name]
-            signal_count = len(layout['signals'].split())
-            print(f"{i:2d}. {layout_name:<50} | Signals: {signal_count:2d}")
-            print(f"    Description: {layout['description']}")
-            if 'inner_pads' in layout:
-                inner_pad_count = len(layout['inner_pads'])
-                print(f"    Inner pads: {inner_pad_count}")
-            print()
+        available_layouts = get_available_pad_layouts()
+        for i, layout_name in enumerate(available_layouts, 1):
+            print(f"{i:2d}. {layout_name}")
+        print(f"\nTotal: {len(available_layouts)} layouts")
         print("=" * 80)
         
         # If preview is also requested, continue to preview section
@@ -567,15 +773,17 @@ Examples:
     else:
         log_dir = "logs/batch_io_ring"
     
-    # Generate experiment list
+    # Generate experiment list from AMS-IO-Bench directory
+    available_layouts = get_available_pad_layouts()
+    
     if args.pad_layout:
-        if args.pad_layout not in PAD_LAYOUTS:
+        if args.pad_layout not in available_layouts:
             print(f"Error: Unknown pad layout '{args.pad_layout}'")
-            print(f"Available layouts: {', '.join(get_available_pad_layouts())}")
+            print(f"Available layouts: {', '.join(available_layouts)}")
             return
         pad_layouts = [args.pad_layout]
     else:
-        pad_layouts = get_available_pad_layouts()
+        pad_layouts = available_layouts
     
     # Generate experiments
     experiments = []
@@ -746,9 +954,6 @@ Examples:
                 ramic_port = args.ramic_port
             
             print(f"\n[{i}/{len(experiments)}] Processing: {prompt_key} ({pad_layout_name})")
-            
-            # Import run_experiment here to avoid circular imports
-            from run_batch_experiments import run_experiment
             
             # Use run_experiment with prompt_text directly
             result = run_experiment(

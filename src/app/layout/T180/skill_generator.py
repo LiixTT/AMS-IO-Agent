@@ -18,6 +18,27 @@ class SkillGeneratorT180:
         self.config = config
         self.inner_pad_handler = InnerPadHandler(config)
         self.position_calculator = PositionCalculator(config)
+    
+    def _format_core_label(self, signal_name: str) -> str:
+        """Format signal name with _CORE suffix, handling <> notation correctly.
+        
+        For signals with <>, format as: PREFIX_CORE<INDEX>
+        For regular signals, format as: SIGNAL_CORE
+        
+        Examples:
+            SEL<0> -> SEL_CORE<0>
+            VDD<1> -> VDD_CORE<1>
+            VCM -> VCM_CORE
+        """
+        import re
+        # Check if signal has <> notation
+        match = re.match(r'^(.+?)(<.+>)$', signal_name)
+        if match:
+            prefix = match.group(1)
+            index_part = match.group(2)
+            return f"{prefix}_CORE{index_part}"
+        else:
+            return f"{signal_name}_CORE"
 
     def _generate_config_io_wires(self, oriented_pads: dict, ring_config: dict) -> Tuple[List[str], dict]:
         """Generate METAL1 configuration lines and corner connections for 180nm.
@@ -305,8 +326,9 @@ class SkillGeneratorT180:
                     )
                 else:
                     # Create pin label (always at base)
+                    core_label = self._format_core_label(pad["name"])
                     skill_commands.append(
-                        f'dbCreateLabel(cv list("METAL1" "pin") list({basex_coord} {basey_coord}) "{pad["name"]}_CORE" "{pin_just}" "{pin_orient}" "roman" 2)'
+                        f'dbCreateLabel(cv list("METAL1" "pin") list({basex_coord} {basey_coord}) "{core_label}" "{pin_just}" "{pin_orient}" "roman" 2)'
                     )
         return skill_commands
     
@@ -352,7 +374,8 @@ class SkillGeneratorT180:
                     core_pos = f'list({x + ring_config["pad_height"] - 0.1} {y - 10})'
                     core_just, core_orient = "centerLeft", "R0"
                 
-                skill_commands.append(f'dbCreateLabel(cv list("M2" "pin") {core_pos} "{name}_CORE" "{core_just}" "{core_orient}" "roman" 2)')
+                core_label = self._format_core_label(name)
+                skill_commands.append(f'dbCreateLabel(cv list("M2" "pin") {core_pos} "{core_label}" "{core_just}" "{core_orient}" "roman" 2)')
         
         # Main pin labels for inner pads (move 152 units inward, opposite direction)
         for inner_pad in inner_pads:
@@ -399,7 +422,8 @@ class SkillGeneratorT180:
                     core_pos = f'list({x + ring_config["pad_height"] - 0.1} {y - 10})'
                     core_just, core_orient = "centerLeft", "R0"
                 
-                skill_commands.append(f'dbCreateLabel(cv list("M2" "pin") {core_pos} "{name}_CORE" "{core_just}" "{core_orient}" "roman" 2)')
+                core_label = self._format_core_label(name)
+                skill_commands.append(f'dbCreateLabel(cv list("M2" "pin") {core_pos} "{core_label}" "{core_just}" "{core_orient}" "roman" 2)')
         
         return skill_commands
 

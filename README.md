@@ -1,22 +1,24 @@
 # AMS-IO-Agent
 
-An AI-powered integrated circuit (IC) design automation agent specialized for Cadence Virtuoso EDA environments. This system automates IO ring generation, CDAC (Capacitor Digital-to-Analog Converter) array design, and verification workflows using LLM-driven intelligent agents.
+An AI-powered integrated circuit (IC) design automation agent specialized for Cadence Virtuoso EDA environments. This system automates IO ring generation and verification workflows using LLM-driven intelligent agents.
 
 ## Overview
 
-AMS-IO-Agent leverages large language models to automate complex analog and mixed-signal IC design tasks. It combines domain knowledge bases, specialized tools, and multi-agent architectures to generate schematic and layout designs for IO rings and capacitor arrays while ensuring design rule compliance.
+AMS-IO-Agent leverages large language models to automate complex analog and mixed-signal IC design tasks, specifically focusing on IO ring design. It combines domain knowledge bases, specialized tools, and intelligent agent architectures to generate schematic and layout designs for IO rings while ensuring design rule compliance.
 
 ## Key Features
 
 - **Automated IO Ring Generation** - Generate IO pad ring schematics and layouts automatically based on requirements
-- **CDAC Capacitor Design** - Unit capacitor, dummy capacitor, and array assembly automation with multiple shape support
 - **Verification Automation** - Integrated DRC, LVS, and PEX verification workflows
 - **Multi-Model Support** - Compatible with Claude, GPT-4, DeepSeek, and other OpenAI-compatible APIs
-- **Knowledge-Driven Design** - Structured knowledge bases for different capacitor shapes and technology nodes
-- **Multi-Agent Architecture** - Master-worker system with specialized agents for complex tasks
-- **Batch Experimentation** - Run large-scale experiments across configurations for benchmarking
+- **Knowledge-Driven Design** - Structured knowledge bases for technology nodes and IO design
 - **Web UI** - Optional Gradio-based web interface for interactive use
 - **Benchmark Suite** - Comprehensive test cases in AMS-IO-Bench for validation
+- **Image Vision Analysis** - Analyze screenshots, layouts, and schematics using vision models
+- **User Profile Management** - Customizable user profiles for personalized design preferences
+- **Tool Statistics & Analytics** - Track tool usage and performance metrics
+- **Task History & Query** - Query and analyze past task executions
+- **Health Check System** - Automated system diagnostics and verification
 
 ## Quick Start
 
@@ -58,29 +60,6 @@ AMS-IO-Agent leverages large language models to automate complex analog and mixe
    - ✅ Install all dependencies
    - ✅ Generate configuration files
    - ✅ Set up Virtuoso integration
-   
-   **Alternative - Manual Setup:**
-   
-   **Linux/macOS:**
-   ```bash
-   ./setup/setup.csh
-   ```
-   
-   **Windows PowerShell:**
-   ```powershell
-   .\setup\setup_powershell.ps1
-   ```
-   
-   **Windows CMD:**
-   ```cmd
-   setup\setup_cmd.bat
-   ```
-   
-   **Troubleshooting:** If you encounter "Permission denied" error (Linux/macOS):
-   ```csh
-   chmod +x quick_start.csh setup/*.csh
-   ./quick_start.csh
-   ```
 
    The setup script will:
    - Create a Python virtual environment using `uv`
@@ -89,11 +68,6 @@ AMS-IO-Agent leverages large language models to automate complex analog and mixe
    - Set up Virtuoso integration files
 
 3. **Configure environment variables:**
-
-   Copy `.env.example` to `.env` and add your API credentials:
-   ```bash
-   cp .env.example .env
-   ```
 
    Edit `.env` with your API keys:
    ```env
@@ -150,16 +124,16 @@ python main.py
 
 ```
 AMS-IO-Agent/
-├── main.py                           # Main entry point for multi-agent system
+├── main.py                           # Main entry point for agent system
 ├── config.yaml                       # Main configuration file (safe to commit)
 ├── .env                              # API keys and secrets (gitignored)
 ├── requirements.txt                  # Python dependencies
 │
 ├── src/                              # Core source code
 │   ├── app/
-│   │   ├── cdac/                     # CDAC analysis module
 │   │   ├── layout/                   # Layout generation components
 │   │   ├── schematic/                # Schematic generation components
+│   │   ├── intent_graph/             # Intent graph processing
 │   │   └── utils/                    # Utilities and agent factories
 │   │
 │   ├── tools/                        # AI agent tools
@@ -169,42 +143,49 @@ AMS-IO-Agent/
 │   │   ├── pex_runner_tool.py        # Run PEX extraction
 │   │   ├── io_ring_generator_tool.py # Generate IO ring designs
 │   │   ├── knowledge_loader_tool.py  # Dynamic knowledge base loading
-│   │   └── skill_tools_manager.py    # Manage reusable SKILL tools
+│   │   ├── skill_tools_manager.py    # Manage reusable SKILL tools
+│   │   ├── image_vision_tool.py      # Image analysis and vision
+│   │   ├── user_profile_tool.py      # User profile management
+│   │   ├── health_check_tool.py      # System health diagnostics
+│   │   ├── task_query_tool.py        # Task history query
+│   │   ├── tool_stats_tool.py        # Tool usage statistics
+│   │   ├── python_tool_creator.py    # Python helper tool creator
+│   │   ├── tools_config.yaml         # Tool configuration
+│   │   └── python_helpers/            # Python helper utilities
 │   │
 │   └── scripts/                      # Helper scripts and bridges
-│       └── ramic_bridge/             # RAMIC bridge for Virtuoso communication
+│       ├── ramic_bridge/             # RAMIC bridge for Virtuoso communication
+│       └── calibre/                  # Calibre verification scripts
 │
 ├── Knowledge_Base/                   # Structured design knowledge
 │   ├── 00_META/                      # Knowledge base index and metadata
 │   ├── 01_CORE/                      # Core design principles and workflows
 │   ├── 02_TECHNOLOGY/                # Technology-specific parameters
-│   ├── 03_DESIGN_BLOCKS/             # IO Ring and CDAC design knowledge
-│   ├── 04_VERIFICATION/              # DRC, LVS, PEX knowledge
-│   ├── 05_EXAMPLES/                  # Example code and templates
-│   └── 06_ERRORS/                    # Common errors and solutions
+│   ├── 03_DESIGN_BLOCKS/             # IO Ring design knowledge
+│   └── 04_ERRORS/                    # Common errors and solutions
 │
 ├── AMS-IO-Bench/                     # Benchmark test suite
 │   ├── 28nm_wirebonding/             # 28nm IO ring test cases
 │   └── 180nm_wirebonding/            # 180nm IO ring test cases
 │
-├── CapArray-Bench/                   # CDAC capacitor array benchmarks
-│
 ├── tests/                            # Unit and integration tests
-│   ├── run_CDAC_batch.py             # Batch CDAC experiment runner
 │   └── run_IO_Ring_batch.py          # Batch IO ring experiment runner
 │
 ├── setup/                            # Installation and setup scripts
 │   └── setup.csh                     # Main setup script
 │
+├── user_data/                        # User-specific data and profiles
+├── user_prompt/                      # Custom prompt files
 ├── output/                           # Generated designs output
-└── logs/                             # Execution logs
+├── logs/                             # Execution logs
+└── docs/                             # Additional documentation
 ```
 
 ## Core Components
 
 ### Entry Point
 
-- **`main.py`** - Multi-agent system entry point with master-worker architecture
+- **`main.py`** - Agent system entry point with IO ring design capabilities
 
 ### Agent Tools
 
@@ -218,6 +199,12 @@ AMS-IO-Agent/
 | `knowledge_loader_tool.py` | Dynamically load knowledge from markdown files |
 | `skill_tools_manager.py` | Manage and execute reusable SKILL utilities |
 | `bridge_utils.py` | Virtuoso communication (RAMIC/skillbridge) |
+| `image_vision_tool.py` | Analyze images (screenshots, layouts, schematics) |
+| `user_profile_tool.py` | Manage user profile and preferences |
+| `health_check_tool.py` | System health diagnostics and verification |
+| `task_query_tool.py` | Query and analyze task history |
+| `tool_stats_tool.py` | Track and analyze tool usage statistics |
+| `python_tool_creator.py` | Create and manage Python helper tools |
 
 ### Layout Generation (`src/app/layout/`)
 
@@ -238,23 +225,6 @@ AMS-IO-Agent/
 
 ## Workflows
 
-### CDAC Three-Phase Workflow
-
-The CDAC design follows a structured three-phase approach:
-
-1. **Phase 1: Unit Capacitor Design**
-   - Design unit H-shape/I-type capacitor structures
-   - Iterative parameter synthesis to meet capacitance targets
-   - DRC and PEX verification
-
-2. **Phase 2: Dummy Capacitor Generation**
-   - Generate dummy capacitors based on unit cell
-   - Verify with DRC/PEX
-
-3. **Phase 3: Array Generation**
-   - Generate complete CDAC array from Excel specification
-   - Full array verification
-
 ### IO Ring Generation Workflow
 
 1. Generate JSON configuration from natural language requirements
@@ -271,7 +241,6 @@ The system uses a unified Knowledge_Base folder with specialized modules:
 
 ### 01_CORE - Core Design Knowledge
 - Universal design principles
-- Three-phase CDAC workflow
 - Python-SKILL integration patterns
 
 ### 02_TECHNOLOGY - Technology-Specific Parameters
@@ -281,19 +250,11 @@ The system uses a unified Knowledge_Base folder with specialized modules:
 
 ### 03_DESIGN_BLOCKS - Design-Specific Knowledge
 - **IO_RING**: IO pad selection, corner devices, voltage domains
-- **CDAC**: Capacitor shapes (H-shape, I-type, Sandwich), array generation
 
-### 04_VERIFICATION
-- DRC, LVS, and PEX verification procedures
-- Common verification errors and solutions
-
-### 05_EXAMPLES
-- Example SKILL code templates
-- Reference implementations
-
-### 06_ERRORS
+### 04_ERRORS
 - Common error documentation
 - Error patterns and solutions learned during development
+- Verification errors and troubleshooting
 
 ## Technologies
 
@@ -335,20 +296,6 @@ model:
 
 ## Batch Experiments
 
-### CDAC Experiments
-
-Run batch capacitor array experiments:
-
-```bash
-python tests/run_CDAC_batch.py
-```
-
-Features:
-- Multiple capacitance values and shapes
-- Parallel execution
-- Timeout handling
-- Automatic result logging
-
 ### IO Ring Experiments
 
 Run batch IO ring experiments:
@@ -378,6 +325,12 @@ python tests/test_io_ring_tool.py
 python tests/test_drc_runner_tool.py
 python tests/test_lvs_runner_tool.py
 python tests/test_pex_runner_tool.py
+
+# System and utility tests
+python tests/test_health_check.py
+python tests/test_image_vision_tool.py
+python tests/test_user_profile.py
+python tests/test_python_helper.py
 ```
 
 ## Configuration
@@ -430,17 +383,17 @@ USER_PROFILE_PATH=user_data/default_user_profile.md
 
 ## Architecture
 
-### Multi-Agent System
+### Agent System
 
-The system uses a master-worker architecture:
+The system uses a specialized agent architecture focused on IO ring design:
 
-- **Master Agent**: Coordinates overall workflow, has access to standard tools
-- **Worker Agents**: Specialized agents for specific tasks (e.g., CDAC analysis)
+- **IO Agent**: Coordinates IO ring generation, verification, and knowledge management
+- **Tool Suite**: Comprehensive EDA tools for Virtuoso integration and verification
 
 Benefits:
-- Separation of concerns
-- Specialized expertise for complex subtasks
-- Parallel execution capabilities
+- Focused expertise on IO ring design
+- Streamlined workflow for pad ring generation
+- Direct access to all necessary EDA tools
 
 ### Tool Loading
 
@@ -458,7 +411,7 @@ Knowledge modules are loaded on-demand from markdown files in the knowledge base
 This project is under active development. Contributions are welcome in the following areas:
 
 - Additional technology node support
-- New capacitor shapes and structures
+- New IO pad types and configurations
 - Improved error handling and recovery
 - Documentation and examples
 - Test coverage

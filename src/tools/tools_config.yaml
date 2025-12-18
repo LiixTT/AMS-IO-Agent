@@ -67,10 +67,16 @@ tool_groups:
       - generate_io_ring_layout
   
   image_vision:
-    enabled: true
+    enabled: false  # Disabled: Using io_layout_descriptor instead (keeps code for future use)
     tools:
       - analyze_image_path
       - analyze_image_b64
+  
+  io_layout_descriptor:
+    enabled: true
+    tools:
+      - describe_io_layout_image
+      - compare_io_layout_images
   
   user_profile:
     enabled: true

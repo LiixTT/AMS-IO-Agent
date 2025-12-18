@@ -291,11 +291,13 @@ Test files use sample configurations and data located in:
 ### Logs
 Test execution logs are saved in:
 - `logs/test_YYYYMMDD_HHMMSS.log` - Test execution logs
+- `logs/batch_io_ring/` - Batch IO ring experiment logs
 - `output/` - Test output files
 
 ### Reports
 - Test results are displayed in console output
 - Detailed logs saved to timestamped files
+- Batch experiment results logged separately
 
 ## Troubleshooting
 

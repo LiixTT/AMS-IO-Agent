@@ -226,16 +226,16 @@ class SchematicGenerator:
                         x = (x1 + x2) / 2.0
                         y = (y1 + y2) / 2.0
                         
-                        # Apply inner ring pad offset (move inward by 4 units)
+                        # Apply inner ring pad offset (move outward by 4 units)
                         inner_offset = 4.0
                         if side == 'left':
-                            x += inner_offset  # Move right
+                            x -= inner_offset  # Move left (outward)
                         elif side == 'right':
-                            x -= inner_offset  # Move left
+                            x += inner_offset  # Move right (outward)
                         elif side == 'bottom':
-                            y += inner_offset  # Move up
+                            y -= inner_offset  # Move down (outward)
                         elif side == 'top':
-                            y -= inner_offset  # Move down
+                            y += inner_offset  # Move up (outward)
                         
                         # For 180nm, device offset is not applied
                         return (x, y)
@@ -318,18 +318,18 @@ class SchematicGenerator:
         else:
             raise ValueError(f"Unknown side description: {side}")
         
-        # Apply inner ring pad offset (move inward by 4 units)
+        # Apply inner ring pad offset (move outward by 4 units)
         if is_inner_ring:
             inner_offset = 4.0
             
             if side == 'left':
-                x -= inner_offset  # Move right
+                x -= inner_offset  # Move left (outward)
             elif side == 'right':
-                x += inner_offset  # Move left
+                x += inner_offset  # Move right (outward)
             elif side == 'bottom':
-                y -= inner_offset  # Move up
+                y -= inner_offset  # Move down (outward)
             elif side == 'top':
-                y += inner_offset  # Move down
+                y += inner_offset  # Move up (outward)
         
         # For 180nm, device offset is not applied
         return (x, y)
